@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ASUS ProArt X870E + RTX PRO 6000 GPU Server Setup Guide</title>
+  <style>
+    :root {
+      --bg-color: #0d1117;
+      --card-bg: #161b22;
+      --card-border: #30363d;
+      --text-main: #c9d1d9;
+      --text-bright: #f0f6fc;
+      --text-muted: #8b949e;
+      --accent: #58a6ff;
+      --accent-green: #3fb950;
+      --accent-amber: #d29922;
+      --accent-purple: #bc8cff;
+      --code-bg: #0b0e14;
+      --code-border: #21262d;
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.65;
+      padding: 30px 20px 80px;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    header {
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 24px;
+      margin-bottom: 36px;
+    }
+
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+      border: 1px solid;
+    }
+
+    .badge-blue { background: rgba(88, 166, 255, 0.15); color: #58a6ff; border-color: rgba(88, 166, 255, 0.4); }
+    .badge-green { background: rgba(63, 185, 80, 0.15); color: #3fb950; border-color: rgba(63, 185, 80, 0.4); }
+    .badge-purple { background: rgba(188, 140, 255, 0.15); color: #bc8cff; border-color: rgba(188, 140, 255, 0.4); }
+
+    h1 {
+      color: var(--text-bright);
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 14.5px;
+      line-height: 1.6;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 28px;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid rgba(48, 54, 61, 0.6);
+      padding-bottom: 12px;
+    }
+
+    .step-number {
+      background: var(--accent);
+      color: #0b0e14;
+      font-weight: 800;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    h2 {
+      color: var(--text-bright);
+      font-size: 19px;
+      font-weight: 600;
+    }
+
+    h3 {
+      color: var(--text-bright);
+      font-size: 15px;
+      font-weight: 600;
+      margin: 18px 0 8px;
+    }
+
+    p {
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+
+    .code-container {
+      position: relative;
+      margin: 12px 0 16px;
+    }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--code-border);
+      border-radius: 6px;
+      padding: 14px 16px;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.5;
+      color: #e6edf3;
+    }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 13px;
+    }
+
+    p code, li code {
+      background: rgba(110, 118, 129, 0.2);
+      padding: 1px 5px;
+      border-radius: 4px;
+      color: var(--accent);
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: #21262d;
+      border: 1px solid #363b42;
+      border-radius: 4px;
+      color: var(--text-muted);
+      font-size: 11px;
+      padding: 4px 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .copy-btn:hover {
+      background: #30363d;
+      color: var(--text-bright);
+    }
+
+    .alert {
+      border-left: 4px solid;
+      padding: 12px 16px;
+      border-radius: 0 6px 6px 0;
+      margin: 16px 0;
+      font-size: 14px;
+      background: rgba(22, 27, 34, 0.7);
+    }
+
+    .alert-tip { border-color: var(--accent-green); background: rgba(46, 160, 67, 0.08); }
+    .alert-warn { border-color: var(--accent-amber); background: rgba(210, 153, 34, 0.08); }
+    .alert-info { border-color: var(--accent); background: rgba(88, 166, 255, 0.08); }
+
+    .alert strong {
+      color: var(--text-bright);
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 13.5px;
+    }
+
+    th, td {
+      border: 1px solid var(--card-border);
+      padding: 8px 12px;
+      text-align: left;
+    }
+
+    th {
+      background: #1c2128;
+      color: var(--text-bright);
+      font-weight: 600;
+    }
+
+    ul, ol {
+      padding-left: 20px;
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+
+    li {
+      margin-bottom: 6px;
+    }
+
+    .highlight {
+      color: var(--accent-green);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="badge-row">
+      <span class="badge badge-blue">Ubuntu 24.04.4 LTS Server</span>
+      <span class="badge badge-green">ASUS ProArt X870E-CREATOR</span>
+      <span class="badge badge-purple">RTX PRO 6000 Ada (48GB)</span>
+      <span class="badge badge-blue">vLLM v0.28.0 + Qwen3.8-27B</span>
+    </div>
+    <h1>GPU Server Standalone Setup Manual (NVIDIA / Docker / vLLM)</h1>
+    <div class="subtitle">
+      A standardized production setup guide for configuring the ASUS ProArt X870E motherboard with a single NVIDIA RTX PRO 6000 Ada (48GB VRAM) system, mirroring the proven driver and vLLM optimization stack from our dual-GPU environment.
+    </div>
+  </header>
+
+  <!-- Step 1 -->
+  <div class="card">
+    <div class="card-header">
+      <div class="step-number">1</div>
+      <h2>Prerequisites and System Inspection</h2>
+    </div>
+    <p>Immediately after a fresh Ubuntu 24.04.4 Server installation, install build tools required for kernel module builds (DKMS) and network utilities:</p>
+    
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><code>sudo apt update && sudo apt upgrade -y
+sudo apt install -y build-essential dkms curl wget git jq net-tools pciutils</code></pre>
+    </div>
+
+    <h3>PCIe Slot Detection</h3>
+    <p>Verify that the RTX PRO 6000 GPU installed in the PCIe 5.0/4.0 slot is properly recognized on the bus:</p>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><code>lspci -nnk | grep -iE 'vga|3d|nvidia'</code></pre>
+    </div>
+  </div>
+
+  <!-- Step 2 -->
+  <div class="card">
+    <div class="card-header">
+      <div class="step-number">2</div>
+      <h2>NVIDIA Driver Installation (v580 Open Kernel Module)</h2>
+    </div>
+    <p>Install the stable <strong>nvidia-driver-580-open</strong> package from the official Ubuntu 24.04 LTS repository (consistent with driver version <code>580.173.xx</code>):</p>
+
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><code># 1. Install NVIDIA open kernel module driver
+sudo apt install -y nvidia-driver-580-open
+
+# 2. Enable Persistence Mode service (keeps driver resident in VRAM)
+sudo systemctl enable --now nvidia-persistenced
+
+# 3. Reboot to load the newly built kernel modules
+sudo reboot</code></pre>
+    </div>
+
+    <h3>Verify Driver Status After Reboot</h3>
+    <p>Reconnect via SSH and verify driver status:</p>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><code>nvidia-smi</code></pre>
+    </div>
+    <div class="alert alert-tip">
+      <strong>Verification Checklist:</strong>
+      • Driver Version: 580.173.xx<br>
+      • Memory-Usage: 49140MiB (~48GB VRAM detected)<br>
+      • Persistence-M: On
+    </div>
+  </div>
+
+  <!-- Step 3 -->
+  <div class="card">
+    <div class="card-header">
+      <div class="step-number">3</div>
+      <h2>Docker Engine and Docker Compose Installation</h2>
+    </div>
+    <p>Install Docker Engine and Compose v2 packages, and grant necessary user permissions:</p>
+
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><code># 1. Install packages
+sudo apt install -y docker.io docker-compose-v2
+
+# 2. Add current user to docker group
+sudo usermod -aG docker $USER
+
+# 3. Enable and start Docker service
+sudo systemctl enable --now docker
+
+# 4. Apply new group to current shell session
+newgrp docker</code></pre>
+    </div>
+
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><code>docker --version && docker compose version</code></pre>
+    </div>
+  </div>
+
+  <!-- Step 4 -->
+  <div class="card">
+    <div class="card-header">
+      <div class="step-number">4</div>
+      <h2>NVIDIA Container Toolkit Installation & Docker Integration</h2>
+    </div>
+    <p>Configure the NVIDIA Container Toolkit so that Docker containers can directly access the host GPU:</p>
+
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><code># 1. Register GPG key
+curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | \
+  sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+
+# 2. Register APT repository list
+curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+  sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+  sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+
+# 3. Update index and install toolkit
+sudo apt update
+sudo apt install -y nvidia-container-toolkit
+
+# 4. Register Docker runtime and restart daemon
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker</code></pre>
+    </div>
+
+    <h3>GPU Passthrough Smoke Test</h3>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><code>docker run --rm --gpus all ubuntu nvidia-smi</code></pre>
+    </div>
+    <div class="alert alert-tip">
+      <strong>Success Criteria:</strong> The container output matches the host RTX PRO 6000 <code>nvidia-smi</code> display.
+    </div>
+  </div>
+
+  <!-- Step 5 -->
+  <div class="card">
+    <div class="card-header">
+      <div class="step-number">5</div>
+      <h2>vLLM Container Deployment & Execution (Qwen3.8-27B)</h2>
+    </div>
+
+    <div class="alert alert-info">
+      <strong>RTX PRO 6000 (48GB) Optimization Advantage:</strong><br>
+      • Dual RTX 5070 Ti (16GB × 2) setups require strict TP=2 splitting and careful memory boundaries.<br>
+      • <strong>RTX PRO 6000 provides a massive 48GB VRAM pool on a single card</strong>. Using <strong><code>--tensor-parallel-size 1</code></strong> eliminates PCIe inter-GPU communication overhead, unlocking peak throughput and easily accommodating 16K–32K context windows with abundant KV cache.
+    </div>
+
+    <h3>5.1 Create Working Directory & Environment File (.env)</h3>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><code>mkdir -p ~/docker-runtime/vllm
+cd ~/docker-runtime/vllm
+
+cat &lt;&lt;'EOF' &gt; ~/docker-runtime/vllm/.env
+# Hugging Face Token (optional for public models)
+HF_TOKEN=
+
+# Prevent PyTorch VRAM fragmentation (essential for stable CUDA Graph capture)
+PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+EOF
+
+chmod 600 ~/docker-runtime/vllm/.env</code></pre>
+    </div>
+
+    <h3>5.2 Create docker-compose.yml</h3>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><code>cat &lt;&lt;'EOF' &gt; ~/docker-runtime/vllm/docker-compose.yml
+services:
+  vllm-qwen:
+    image: vllm/vllm-openai:v0.28.0
+    container_name: vllm-qwen3.8-27b
+    runtime: nvidia
+    restart: unless-stopped
+    ipc: host
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ~/.cache/huggingface:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 30
+      start_period: 600s
+    command: >
+      --model cyankiwi/Qwen3.8-27B-AWQ-INT4
+      --served-model-name qwen3.8:27b
+      --tensor-parallel-size 1
+      --gpu-memory-utilization 0.92
+      --max-model-len 16384
+      --max-num-seqs 16
+      --max-num-batched-tokens 8192
+      --kv-cache-dtype fp8
+      --enable-chunked-prefill
+      --enable-prefix-caching
+      --reasoning-parser qwen3
+      --port 8000
+      --host 0.0.0.0
+EOF</code></pre>
+    </div>
+
+    <h3>5.3 Launch vLLM & Monitor Logs</h3>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><code># Start container in background
+docker compose up -d
+
+# Inspect startup logs & weight loading
+docker compose logs -f</code></pre>
+    </div>
+    <p>When the line <code>Uvicorn running on http://0.0.0.0:8000</code> appears, the server is ready. (Press <code>Ctrl + C</code> to exit logs)</p>
+  </div>
+
+  <!-- Step 6 -->
+  <div class="card">
+    <div class="card-header">
+      <div class="step-number">6</div>
+      <h2>API Testing & Functional Verification</h2>
+    </div>
+
+    <h3>6.1 Health Check</h3>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><code>curl -i http://localhost:8000/health</code></pre>
+    </div>
+    <p class="highlight">➔ Response: HTTP/1.1 200 OK</p>
+
+    <h3>6.2 Model List Endpoint</h3>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><code>curl -s http://localhost:8000/v1/models | jq .</code></pre>
+    </div>
+
+    <h3>6.3 Chat Completion Inference Test</h3>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><code>curl -s http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "qwen3.8:27b",
+    "messages": [
+      {"role": "system", "content": "You are a helpful assistant."},
+      {"role": "user", "content": "Hello! Testing the server environment. Please reply with a 1-sentence summary."}
+    ],
+    "max_tokens": 100,
+    "temperature": 0.7
+  }' | jq .</code></pre>
+    </div>
+
+    <h3>6.4 Real-time Streaming (SSE) Test</h3>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><code>curl -N http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "qwen3.8:27b",
+    "messages": [{"role": "user", "content": "Count from 1 to 5, one number per line."}],
+    "stream": true
+  }'</code></pre>
+    </div>
+  </div>
+
+  <!-- Step 7 -->
+  <div class="card">
+    <div class="card-header">
+      <div class="step-number">7</div>
+      <h2>Operational Checklist (ASUS ProArt X870E & OS)</h2>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th>Check Item</th>
+          <th>Recommended Setting / Solution</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>BIOS</strong></td>
+          <td>Above 4G Decoding</td>
+          <td><strong>Enabled</strong> (Essential for 48GB VRAM address space mapping)</td>
+        </tr>
+        <tr>
+          <td><strong>BIOS</strong></td>
+          <td>Re-Size BAR Support</td>
+          <td><strong>Enabled</strong> or <strong>Auto</strong> (Optimizes direct VRAM access)</td>
+        </tr>
+        <tr>
+          <td><strong>Storage</strong></td>
+          <td>Root Partition LVM Capacity</td>
+          <td>Default Ubuntu Server installs may limit root partition to 100GB.<br><code>sudo lvextend -l +100%FREE /dev/ubuntu-vg/ubuntu-lv && sudo resize2fs /dev/ubuntu-vg/ubuntu-lv</code></td>
+        </tr>
+        <tr>
+          <td><strong>Firewall</strong></td>
+          <td>External Traffic (UFW)</td>
+          <td>Allow incoming port 8000 for network access:<br><code>sudo ufw allow 8000/tcp</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  function copyCode(button) {
+    const pre = button.parentElement.querySelector('pre');
+    const code = pre.querySelector('code') || pre;
+    navigator.clipboard.writeText(code.innerText.trim()).then(() => {
+      const origText = button.innerText;
+      button.innerText = 'Copied!';
+      button.style.color = '#3fb950';
+      button.style.borderColor = '#3fb950';
+      setTimeout(() => {
+        button.innerText = origText;
+        button.style.color = '';
+        button.style.borderColor = '';
+      }, 2000);
+    });
+  }
+</script>
+
+</body>
+</html>
