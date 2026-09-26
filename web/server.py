@@ -213,9 +213,9 @@ def run():
             server_address = ("", port)
             httpd = HTTPServer(server_address, StreamingHTTPRequestHandler)
             print(f"\n======================================================")
-            print(f"  🚀 LLM Streaming Web Application Started! (Python)")
-            print(f"  🌐 Web UI:         http://localhost:{port}")
-            print(f"  🔗 LLM Endpoint:   {LLM_BASE_URL}")
+            print(f"  LLM Streaming Web Application Started! (Python)")
+            print(f"  Web UI:         http://localhost:{port}")
+            print(f"  LLM Endpoint:   {LLM_BASE_URL}")
             print(f"======================================================\n")
             try:
                 httpd.serve_forever()

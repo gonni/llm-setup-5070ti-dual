@@ -5,7 +5,7 @@
 
 ---
 
-## 📋 목차
+## 목차
 1. [사전 준비 및 시스템 점검](#1-사전-준비-및-시스템-점검)
 2. [NVIDIA 드라이버 설치 (v580 Open Module)](#2-nvidia-드라이버-설치)
 3. [Docker 및 Docker Compose 설치](#3-docker-및-docker-compose-설치)
@@ -150,7 +150,7 @@ docker run --rm --gpus all ubuntu nvidia-smi
 
 gpu2에서 안정성과 성능이 실측 검증된 **`vllm/vllm-openai:v0.28.0`** 이미지와 **`cyankiwi/Qwen3.8-27B-AWQ-INT4`** 모델을 배포합니다.
 
-> 💡 **RTX PRO 6000 (48GB VRAM) 이점:**  
+> **RTX PRO 6000 (48GB VRAM) 이점:**  
 > gpu2(듀얼 5070 Ti, 16GB x 2 = 32GB)에서는 VRAM이 빠듯하여 TP=2 분할과 메모리 한도 설정이 엄격해야 했으나, **RTX PRO 6000은 단일 48GB VRAM**을 탑재하고 있어 단일 GPU(TP=1)로 통신 오버헤드 없이 구동되며, 32k 이상의 긴 컨텍스트와 대량의 동시 배치 처리도 여유롭게 소화합니다.
 
 ### 5.1 작업 디렉토리 생성

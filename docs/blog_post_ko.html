@@ -558,7 +558,7 @@ BAR1 Memory: 16,384 MiB (16GB 전체 Resizable BAR 매핑 완료)</code></pre>
           우리는 시스템의 모든 족쇄를 풀기 위해 4가지 정밀 튜닝을 단행했습니다:
         </p>
         <ol>
-          <li><strong><code>--max-num-batched-tokens 8192</code>:</strong> 4,105 토큰 프롬프트가 청크로 쪼개지지 않고 단 1번의 포워드 패스로 끝나도록 스케줄러 창을 2배로 확장 (단발 소요시간 12.7s ➔ 10.6s 단축)</li>
+          <li><strong><code>--max-num-batched-tokens 8192</code>:</strong> 4,105 토큰 프롬프트가 청크로 쪼개지지 않고 단 1번의 포워드 패스로 끝나도록 스케줄러 창을 2배로 확장 (단발 소요시간 12.7s -> 10.6s 단축)</li>
           <li><strong><code>NCCL_BUFFSIZE: "8388608"</code>:</strong> PCIe 링 버퍼를 8MB로 확장하여 All-Reduce 통신 버스트 완충</li>
           <li><strong><code>VLLM_ATTENTION_BACKEND: "FLASHINFER"</code>:</strong> Blackwell 텐서코어의 FP4 가중치 + FP8 KV 캐시 연산 효율 극대화</li>
           <li><strong><code>PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:False"</code>:</strong> CUDA Graphs와 PyTorch 가상 메모리 관리자 간의 알려진 충돌 제거</li>

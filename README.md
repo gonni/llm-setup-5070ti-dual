@@ -1,4 +1,4 @@
-# 🚀 High-Performance Local LLM Serving Architecture & Setup Guide
+# High-Performance Local LLM Serving Architecture & Setup Guide
 
 > **Dual NVIDIA RTX 5070 Ti (32GB VRAM) & RTX PRO 6000 Ada (48GB VRAM) 기반 vLLM 프로덕션 서빙 및 하드웨어 엔지니어링 실전 가이드**
 
@@ -10,7 +10,7 @@
 
 ---
 
-## 📖 프로젝트 개요 (Overview)
+## 프로젝트 개요 (Overview)
 
 본 저장소는 로컬 환경에서 대규모 언어 모델(**Qwen 3.8-27B**)을 고속·저지연으로 서빙하기 위한 **하드웨어 토폴로지 설계, vLLM 최적화 튜닝 및 실전 구축 문서**를 제공합니다.
 
@@ -20,35 +20,35 @@
 
 ---
 
-## 📚 문서 목록 (Documentation)
+## 문서 목록 (Documentation)
 
 모든 상세 가이드와 벤치마크 백서는 [`docs/`](docs/) 디렉토리에 한국어 및 영문으로 제공됩니다:
 
 | 문서명 | 형식 / 언어 | 설명 |
 | :--- | :---: | :--- |
-| **[Dual RTX 5070 Ti 실전 엔지니어링 백서](docs/DUAL_RTX5070TI_QWEN27B_GUIDE_KO.md)** | `Markdown` / 🇰🇷 KO | PCIe 5.0 Bifurcation 설계, AWQ vs NVFP4, PP=2 OOM 참사와 TP=2 81.3 tok/s 도달 과정, 4대 튜닝 옵션 및 장애 해결 런북 |
-| **[Dual RTX 5070 Ti Engineering Whitepaper](docs/DUAL_RTX5070TI_QWEN27B_GUIDE_EN.md)** | `Markdown` / 🇺🇸 EN | Complete engineering journey, benchmark proof, TP=2 vs PP=2 architecture comparison, and production docker-compose runbook |
-| **[Interactive Blog Post (KO)](docs/blog_post_ko.html)** | `HTML` / 🇰🇷 KO | 미려한 다크 테마와 터미널 증거가 포함된 웹 리치 아티클 (한국어) |
-| **[Interactive Blog Post (EN)](docs/blog_post_en.html)** | `HTML` / 🇺🇸 EN | Full-featured responsive HTML article with terminal outputs and specs (English) |
-| **[RTX PRO 6000 GPU 서버 설치 가이드](docs/gpu_server_setup_manual.md)** | `Markdown` / 🇰🇷 KO | ASUS ProArt X870E + RTX PRO 6000 Ada Ubuntu 24.04 서버 구축 가이드 (드라이버 v580, Docker, Container Toolkit, vLLM) |
-| **[RTX PRO 6000 GPU Server Setup Guide](docs/gpu_server_setup_manual_en.md)** | `Markdown` / 🇺🇸 EN | ASUS ProArt X870E + RTX PRO 6000 Ada Ubuntu 24.04 server setup guide (Driver v580, Docker, Container Toolkit, vLLM) |
-| **[RTX PRO 6000 Setup Manual (HTML - KO)](docs/gpu_server_setup_manual.html)** | `HTML` / 🇰🇷 KO | 브라우저 인쇄 및 오프라인 열람용 스타일링 매뉴얼 (한국어) |
-| **[RTX PRO 6000 Setup Manual (HTML - EN)](docs/gpu_server_setup_manual_en.html)** | `HTML` / 🇺🇸 EN | Styled HTML manual for offline reading and printing (English) |
+| **[Dual RTX 5070 Ti 실전 엔지니어링 백서](docs/DUAL_RTX5070TI_QWEN27B_GUIDE_KO.md)** | `Markdown` / KO | PCIe 5.0 Bifurcation 설계, AWQ vs NVFP4, PP=2 OOM 참사와 TP=2 81.3 tok/s 도달 과정, 4대 튜닝 옵션 및 장애 해결 런북 |
+| **[Dual RTX 5070 Ti Engineering Whitepaper](docs/DUAL_RTX5070TI_QWEN27B_GUIDE_EN.md)** | `Markdown` / EN | Complete engineering journey, benchmark proof, TP=2 vs PP=2 architecture comparison, and production docker-compose runbook |
+| **[Interactive Blog Post (KO)](docs/blog_post_ko.html)** | `HTML` / KO | 다크 테마와 터미널 증거가 포함된 웹 리치 아티클 (한국어) |
+| **[Interactive Blog Post (EN)](docs/blog_post_en.html)** | `HTML` / EN | Full-featured responsive HTML article with terminal outputs and specs (English) |
+| **[RTX PRO 6000 GPU 서버 설치 가이드](docs/gpu_server_setup_manual.md)** | `Markdown` / KO | ASUS ProArt X870E + RTX PRO 6000 Ada Ubuntu 24.04 서버 구축 가이드 (드라이버 v580, Docker, Container Toolkit, vLLM) |
+| **[RTX PRO 6000 GPU Server Setup Guide](docs/gpu_server_setup_manual_en.md)** | `Markdown` / EN | ASUS ProArt X870E + RTX PRO 6000 Ada Ubuntu 24.04 server setup guide (Driver v580, Docker, Container Toolkit, vLLM) |
+| **[RTX PRO 6000 Setup Manual (HTML - KO)](docs/gpu_server_setup_manual.html)** | `HTML` / KO | 브라우저 인쇄 및 오프라인 열람용 스타일링 매뉴얼 (한국어) |
+| **[RTX PRO 6000 Setup Manual (HTML - EN)](docs/gpu_server_setup_manual_en.html)** | `HTML` / EN | Styled HTML manual for offline reading and printing (English) |
 
 ---
 
-## 📊 실측 벤치마크 및 계측 도구 (Benchmark Highlights)
+## 실측 벤치마크 및 계측 도구 (Benchmark Highlights)
 
 ### 1. 단일 RTX 5090 vs Dual RTX 5070 Ti 경제학 & 성능 비교
 
 | 평가 항목 | 단일 플래그십 (RTX 5090 32GB) | 본 구축 시스템 (Dual RTX 5070 Ti 32GB) |
 | :--- | :---: | :---: |
-| **시스템 도입 비용** | 약 350만 ~ 400만 원 | 💵 **약 150만 ~ 160만 원 (55% 이상 절감!)** |
-| **VRAM 주소 공간** | 32GB GDDR7 (512-bit 단일 버스) | **32GB GDDR7 (256-bit × 2 = 512-bit 대등)** |
-| **소비 전력 및 발열** | 575W 단일 다이 집중 | ❄️ **250W × 2 분산 쿨링 (일반 공랭 여유)** |
-| **단일 스트림 디코드 속도** | 약 75 ~ 80 tok/s | 🚀 **`81.3 tok/s` (동등 이상 달성!)** |
-| **대용량 프롬프트 프리필** | 4,137 tok/s | ⚡ **2,100 ~ 2,500 tok/s (5090의 약 60%)** |
-| **실서비스 종합 체감** | 기준점 (100%) | 🏆 **단일 5090의 80% ~ 85% 이상 체감 달성** |
+| **시스템 도입 비용** | 약 350만 ~ 400만 원 | **약 150만 ~ 160만 원 (55% 이상 절감)** |
+| **VRAM 주소 공간** | 32GB GDDR7 (512-bit 단일 버스) | **32GB GDDR7 (256-bit x 2 = 512-bit 대등)** |
+| **소비 전력 및 발열** | 575W 단일 다이 집중 | **250W x 2 분산 쿨링 (일반 공랭 여유)** |
+| **단일 스트림 디코드 속도** | 약 75 ~ 80 tok/s | **`81.3 tok/s` (동등 이상 달성)** |
+| **대용량 프롬프트 프리필** | 4,137 tok/s | **2,100 ~ 2,500 tok/s (5090의 약 60%)** |
+| **실서비스 종합 체감** | 기준점 (100%) | **단일 5090의 80% ~ 85% 이상 체감 달성** |
 
 ### 2. vLLM 실측 터미널 벤치마크 결과
 
@@ -88,7 +88,7 @@ python benchmarks/vllm_bench.py --quick
 
 ---
 
-## ⚡ vLLM 프로덕션 빠른 시작 (Quick Start)
+## vLLM 프로덕션 빠른 시작 (Quick Start)
 
 저장소 루트의 [`docker-compose.example.yml`](docker-compose.example.yml)을 복사하여 즉시 프로덕션 vLLM 컨테이너를 구동할 수 있습니다.
 
@@ -116,7 +116,7 @@ curl http://localhost:8000/health
 
 ---
 
-## 💻 동반 웹 스트리밍 클라이언트 (`web/`)
+## 동반 웹 스트리밍 클라이언트 (`web/`)
 
 배포된 vLLM 서버와 연동하여 실시간 SSE 스트리밍, 비전(Vision) 멀티모달 이미지 분석, 사고 과정(Reasoning) 시각화를 지원하는 경량 웹 클라이언트가 [`web/`](web/) 디렉토리에 구성되어 있습니다.
 
@@ -137,7 +137,7 @@ python3 server.py
 
 ---
 
-## 📁 저장소 구조 (Repository Structure)
+## 저장소 구조 (Repository Structure)
 
 ```
 .
@@ -147,12 +147,12 @@ python3 server.py
 ├── docker-compose.example.yml     # Dual GPU vLLM 프로덕션 도커 컴포즈 템플릿
 ├── vllm_bench.py                  # 벤치마크 실행 심볼릭 링크 (-> benchmarks/vllm_bench.py)
 │
-├── benchmarks/                    # 📊 vLLM 프리필/디코드 분리 성능 측정 도구
+├── benchmarks/                    # vLLM 프리필/디코드 분리 성능 측정 도구
 │   ├── README.md                  # 벤치마크 도구 사용법 및 메트릭 가이드
 │   ├── requirements.txt           # httpx 의존성 명세
 │   └── vllm_bench.py              # 비동기 SSE 스트림 성능 계측 스크립트
 │
-├── docs/                          # 📚 실전 엔지니어링 백서 및 설치 가이드
+├── docs/                          # 실전 엔지니어링 백서 및 설치 가이드
 │   ├── DUAL_RTX5070TI_QWEN27B_GUIDE_KO.md  # Dual 5070 Ti 정복기 (한국어 백서)
 │   ├── DUAL_RTX5070TI_QWEN27B_GUIDE_EN.md  # Dual 5070 Ti Whitepaper (English)
 │   ├── blog_post_ko.html                   # 반응형 리치 웹 아티클 (한국어)
@@ -164,7 +164,7 @@ python3 server.py
 │   └── images/
 │       └── benchmark_result.png            # 실측 터미널 벤치마크 스크린샷
 │
-└── web/                           # 💻 테스트용 웹 스트리밍 데모 클라이언트
+└── web/                           # 테스트용 웹 스트리밍 데모 클라이언트
     ├── README.md                  # 웹 클라이언트 실행 및 설정 가이드
     ├── package.json               # Node.js 실행 스크립트 정의
     ├── server.js                  # Pure Node.js 스트리밍 프록시 & 정적 서버
@@ -177,6 +177,6 @@ python3 server.py
 
 ---
 
-## 📄 라이선스 (License)
+## 라이선스 (License)
 
 본 프로젝트의 모든 문서 및 소스코드는 [MIT License](LICENSE)에 따라 자유롭게 사용, 수정, 배포할 수 있습니다.

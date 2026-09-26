@@ -322,9 +322,9 @@ function findAvailablePort(startPort) {
 findAvailablePort(PORT).then((freePort) => {
   server.listen(freePort, () => {
     console.log(`\n======================================================`);
-    console.log(`  🚀 LLM Streaming Web Application Started!`);
-    console.log(`  🌐 Web UI:         http://localhost:${freePort}`);
-    console.log(`  🔗 LLM Endpoint:   ${LLM_BASE_URL}`);
+    console.log(`  LLM Streaming Web Application Started!`);
+    console.log(`  Web UI:         http://localhost:${freePort}`);
+    console.log(`  LLM Endpoint:   ${LLM_BASE_URL}`);
     console.log(`======================================================\n`);
   });
 }).catch((err) => {

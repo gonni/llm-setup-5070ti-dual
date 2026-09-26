@@ -5,7 +5,7 @@
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 1. [Prerequisites and System Inspection](#1-prerequisites-and-system-inspection)
 2. [NVIDIA Driver Installation (v580 Open Module)](#2-nvidia-driver-installation)
 3. [Docker and Docker Compose Installation](#3-docker-and-docker-compose-installation)
@@ -150,7 +150,7 @@ docker run --rm --gpus all ubuntu nvidia-smi
 
 Deploy the production-tested **`vllm/vllm-openai:v0.28.0`** image with the **`cyankiwi/Qwen3.8-27B-AWQ-INT4`** model.
 
-> 💡 **Architectural Advantage of RTX PRO 6000 (48GB VRAM):**  
+> **Architectural Advantage of RTX PRO 6000 (48GB VRAM):**  
 > While dual RTX 5070 Ti setups (16GB × 2 = 32GB) require strict Tensor Parallelism (TP=2) and tight VRAM allocation limits, the **RTX PRO 6000 features a massive single 48GB VRAM pool**. This allows running on a single GPU (`TP=1`) without inter-GPU PCIe communication overhead, comfortably accommodating 16K–32K context windows and large batch sizes.
 
 ### 5.1 Create Working Directory

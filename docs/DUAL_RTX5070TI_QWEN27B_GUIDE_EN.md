@@ -1,4 +1,4 @@
-# 🚀 The Complete Odyssey of Conquering Qwen 3.8-27B on Dual RTX 5070 Ti (32GB) + ASUS ProArt X870E
+# The Complete Odyssey of Conquering Qwen 3.8-27B on Dual RTX 5070 Ti (32GB) + ASUS ProArt X870E
 > **Subtitle:** From AWQ crashes and NVFP4 adoption to the trap of Pipeline Parallelism (PP=2), multimodal OOM disasters, hacked driver audits, and ultimate 81.3 tok/s Tensor Parallelism (TP=2) victory — A production engineering whitepaper.
 
 [![Hardware: Dual RTX 5070 Ti](https://img.shields.io/badge/Hardware-Dual%20RTX%205070%20Ti%20(32GB)-76b900?logo=nvidia&style=flat-square)](https://www.nvidia.com)
@@ -9,7 +9,7 @@
 
 ---
 
-## 📌 Table of Contents
+## Table of Contents
 1. [Project Inception: The Untraveled Path — Why Dual 5070 Ti?](#1-project-inception-the-untraveled-path--why-dual-5070-ti)
 2. [Hardware Topology: The Secret of PCIe 5.0 Bifurcation (x8/x8)](#2-hardware-topology-the-secret-of-pcie-50-bifurcation-x8x8)
 3. [The Chronological Engineering Odyssey](#3-the-chronological-engineering-odyssey)
@@ -34,11 +34,11 @@ In 2026, **Qwen 3.8-27B** (and the Qwen 3.5 series) has cemented its status as t
 
 However, serving a 27B parameter model with extended context windows (up to 32k tokens) commands a minimum of **28GB+ VRAM**.
 
-### 💸 The Reality Check: Single RTX 5090 32GB
+### The Reality Check: Single RTX 5090 32GB
 * **Market Scalping & Premium:** A single retail card commands $2,500 – $3,200+.
 * **Thermal & Power Density:** 575W TDP concentrated onto a single silicon die pushes standard chassis airflow and power delivery to their limits.
 
-### 💡 Our Engineering Hypothesis
+### Our Engineering Hypothesis
 > **"Can we pair two NVIDIA GeForce RTX 5070 Ti GPUs (16GB GDDR7, 250W TDP each) to build a combined 32GB VRAM system with 1,792 GB/s aggregate memory bandwidth for ~$1,200 total — less than half the cost of an RTX 5090?"**
 
 Yet, across Reddit, GitHub, and HuggingFace, no documented case studies existed for serving a 27B model on Dual 5070 Ti in production. Because GeForce hardware lacks physical NVLink fingers, prevailing wisdom insisted that PCIe All-Reduce bus latency would reduce multi-GPU throughput to an unusable crawl.
@@ -150,7 +150,7 @@ The live console output below was captured on the tuned Dual RTX 5070 Ti system 
 
 ![Live Benchmark Terminal Screenshot](images/benchmark_result.png)
 
-### 📊 Measured Performance Matrix
+### Measured Performance Matrix
 
 | Stage | Workload (Prompt / Completion / Requests) | TTFT (p50) | Decode Speed (p50) | Output Throughput | Wall Time |
 | :--- | :---: | :---: | :---: | :---: | :---: |
@@ -168,11 +168,11 @@ The live console output below was captured on the tuned Dual RTX 5070 Ti system 
 
 | Dimension | **TP=2 (Tensor Parallelism, Final Production)** | **PP=2 (Pipeline Parallelism)** | Engineering Verdict |
 | :--- | :--- | :--- | :--- |
-| **Single-Stream Interactive Speed** | 🚀 **`81.3 tok/s`** (Instantaneous typing) | 🐢 **`47.7 tok/s`** (Noticeable latency) | TP=2 is **+70.4% faster**. Critical for UX |
-| **Pure Text Batch Throughput** | ⚡ **`320 ~ 335 tok/s` (Peak 446.5)** | 🏆 **`480.6 tok/s`** | PP=2 is faster in batch, but at the cost of halving interactive speed |
-| **VRAM Allocation Symmetry** | ⚖️ **Perfect 50:50 distribution (7.8GB : 7.8GB)** | ⚠️ **Severe skew (15.4GB vs 13.0GB)** | TP=2 protects both cards; PP=2 risks single-card OOM |
-| **Multimodal (Vision) Resilience** | 🛡️ **Zero OOM risk (ViT split 50:50)** | 💥 **Fatal OOM crashes (ViT pinned to GPU 0)** | PP=2 is disqualified for multimodal production |
-| **Prefix Caching Efficiency** | 🔗 **Shared synchronized block maps** | ✂️ **Segmented stage caches** | Long multi-turn conversations favor TP=2 |
+| **Single-Stream Interactive Speed** | **`81.3 tok/s`** (Instantaneous typing) | **`47.7 tok/s`** (Noticeable latency) | TP=2 is **+70.4% faster**. Critical for UX |
+| **Pure Text Batch Throughput** | **`320 ~ 335 tok/s` (Peak 446.5)** | **`480.6 tok/s`** | PP=2 is faster in batch, but at the cost of halving interactive speed |
+| **VRAM Allocation Symmetry** | **Perfect 50:50 distribution (7.8GB : 7.8GB)** | **Severe skew (15.4GB vs 13.0GB)** | TP=2 protects both cards; PP=2 risks single-card OOM |
+| **Multimodal (Vision) Resilience** | **Zero OOM risk (ViT split 50:50)** | **Fatal OOM crashes (ViT pinned to GPU 0)** | PP=2 is disqualified for multimodal production |
+| **Prefix Caching Efficiency** | **Shared synchronized block maps** | **Segmented stage caches** | Long multi-turn conversations favor TP=2 |
 
 > [!TIP]
 > **The Asymmetry of User Perception:**  
@@ -261,15 +261,15 @@ services:
 
 ## 8. Troubleshooting & Incident Runbook
 
-### 🚨 Case 1: Mamba State Block Exhaustion
+### Case 1: Mamba State Block Exhaustion
 * **Error:** `ValueError: max_num_seqs (256) exceeds available Mamba cache blocks (118)`
 * **Fix:** Explicitly pass `--max-num-seqs 32` to guarantee safe operating headroom within available Mamba blocks.
 
-### 🚨 Case 2: expandable_segments Failure with CUDA Graphs
+### Case 2: expandable_segments Failure with CUDA Graphs
 * **Error:** Setting `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` triggers kernel deadlocks during CUDA Graph compilation.
 * **Fix:** Enforce `expandable_segments:False` to ensure stable virtual address mapping for CUDA Graphs.
 
-### 🚨 Case 3: Multimodal Image OOM under PP=2
+### Case 3: Multimodal Image OOM under PP=2
 * **Error:** Image requests push GPU 0 to 15.38GB VRAM, throwing `RuntimeError: Encoder cache miss`.
 * **Fix:** Migrate to `TP=2`. Model weights and the ViT encoder are split 50:50 across both cards, permanently eliminating single-GPU memory spikes.
 
@@ -279,11 +279,11 @@ services:
 
 | Evaluation Metric | Single Flagship (RTX 5090 32GB) | Our System (RTX 5070 Ti Dual 32GB) |
 | :--- | :--- | :--- |
-| **Capital Expenditure** | $2,500 – $3,200+ | 💵 **~$1,200 – $1,300 (>50% Savings!)** |
+| **Capital Expenditure** | $2,500 – $3,200+ | **~$1,200 – $1,300 (>50% Savings!)** |
 | **VRAM Address Space** | 32GB GDDR7 (512-bit single bus) | **32GB GDDR7 (Dual 256-bit buses = 512-bit)** |
-| **Power & Thermal Profile** | 575W concentrated single-die heat | ❄️ **250W × 2 distributed dissipation** |
-| **Single-Stream Decode Speed** | ~75 – 80 tok/s | 🚀 **`81.3 tok/s` (Matches or beats single card!)** |
-| **Large Prompt Prefill Speed** | 4,137 tok/s (0ms PCIe transfer) | ⚡ **2,100 – 2,500 tok/s (~60% of single card)** |
-| **Overall Serving Capability** | 100% Baseline | 🏆 **Achieves 80% – 85% of 5090 throughput** |
+| **Power & Thermal Profile** | 575W concentrated single-die heat | **250W × 2 distributed dissipation** |
+| **Single-Stream Decode Speed** | ~75 – 80 tok/s | **`81.3 tok/s` (Matches or beats single card!)** |
+| **Large Prompt Prefill Speed** | 4,137 tok/s (0ms PCIe transfer) | **2,100 – 2,500 tok/s (~60% of single card)** |
+| **Overall Serving Capability** | 100% Baseline | **Achieves 80% – 85% of 5090 throughput** |
 
 By unifying **PCIe 5.0 Bifurcation (x8/x8) on the ASUS ProArt X870E, Blackwell native NVFP4 quantization, and surgical vLLM stack optimization**, we have demonstrated that **Dual RTX 5070 Ti can replace a $3,000 flagship accelerator for half the price**.

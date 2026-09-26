@@ -1,10 +1,10 @@
-# 🚀 vLLM Serving Benchmark Tool (`vllm_bench.py`)
+# vLLM Serving Benchmark Tool (`vllm_bench.py`)
 
 vLLM 추론 서버의 **프리필(Prefill) 처리량, 첫 토큰 응답 지연(TTFT), 스트리밍 디코드(Decode) 속도, 동시성 포화 지점**을 실시간 SSE 스트림 기반으로 분리 계측하는 벤치마크 도구입니다.
 
 ---
 
-## 📋 측정 지표 (Metrics)
+## 측정 지표 (Metrics)
 
 | 지표 | 정의 | 단위 | 측정 의미 |
 | :--- | :--- | :---: | :--- |
@@ -16,7 +16,7 @@ vLLM 추론 서버의 **프리필(Prefill) 처리량, 첫 토큰 응답 지연(T
 
 ---
 
-## ⚙️ 사전 요구사항 및 설치
+## 사전 요구사항 및 설치
 
 Python 3.9+ 및 비동기 HTTP 라이브러리 `httpx`가 필요합니다:
 
@@ -28,7 +28,7 @@ pip install httpx
 
 ---
 
-## 🏃 실행 방법 (Usage)
+## 실행 방법 (Usage)
 
 ### 1. 기본 실행 (Localhost vLLM 서버 자동 모델 탐색)
 ```bash
@@ -60,7 +60,7 @@ python benchmarks/vllm_bench.py \
 
 ---
 
-## 🔍 3단계 벤치마크 단계 (Execution Phases)
+## 3단계 벤치마크 단계 (Execution Phases)
 
 `vllm_bench.py`는 단일 실행 시 다음 3단계로 부하를 점진적으로 가하며 분석합니다:
 
@@ -73,7 +73,7 @@ python benchmarks/vllm_bench.py \
 
 ---
 
-## 📊 결과 요약 및 튜닝 피드백 가이드
+## 결과 요약 및 튜닝 피드백 가이드
 
 실행이 완료되면 아래와 같이 포화 분석 요약이 출력됩니다:
 
@@ -86,7 +86,7 @@ python benchmarks/vllm_bench.py \
   2/3  배치 (동시성 16)              820.5      2.74      340
   3/3  포화 확인 (동시성 32)         1240.2      4.13      780
 
-  → 동시성 32에서 처리량 1.51배. --max-num-seqs 상향 여지 있음
+  -> 동시성 32에서 처리량 1.51배. --max-num-seqs 상향 여지 있음
 ```
 
 * **처리량이 10% 이상 증가하는 경우:**
@@ -96,7 +96,7 @@ python benchmarks/vllm_bench.py \
 
 ---
 
-## 🛠️ CLI 옵션 목록
+## CLI 옵션 목록
 
 | 옵션 | 기본값 | 설명 |
 | :--- | :---: | :--- |
