@@ -1,0 +1,13 @@
+{
+  "name": "llm-stream-webapp",
+  "version": "1.0.0",
+  "description": "Streaming web application for LLM server (vLLM / gpu2:8000)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "start:py": "python3 server.py"
+  },
+  "keywords": ["llm", "vllm", "streaming", "chat", "ai"],
+  "author": "",
+  "license": "MIT"
+}

@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LLM Streaming Chat - Qwen 3.8 / vLLM</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Google Fonts: Inter & Pre-tendard styled system fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="dark-theme">
+  <div class="app-layout">
+    
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="brand">
+          <div class="brand-icon">⚡</div>
+          <div class="brand-text">
+            <h2>LLM Stream</h2>
+            <span class="brand-sub">vLLM Inference</span>
+          </div>
+        </div>
+        <button class="btn-icon" id="newChatBtn" title="새 대화 시작">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="section-title">빠른 시작 프리셋</div>
+        <div class="preset-list">
+          <button class="preset-item" data-prompt="간단하게 자기소개와 주요 강점을 알려주세요.">
+            <span class="preset-icon">👋</span>
+            <span class="preset-label">자기소개 & 인사</span>
+          </button>
+          <button class="preset-item" data-prompt="이 이미지를 자세히 관찰하고, 무엇이 보이는지 상세하게 묘사해줘.">
+            <span class="preset-icon">🖼️</span>
+            <span class="preset-label">이미지 묘사 & 분석</span>
+          </button>
+          <button class="preset-item" data-prompt="Python으로 비동기 HTTP 요청을 보내는 빠른 예제 코드를 작성해줘.">
+            <span class="preset-icon">🐍</span>
+            <span class="preset-label">Python 비동기 코드</span>
+          </button>
+          <button class="preset-item" data-prompt="양자 컴퓨팅의 핵심 원리를 초등학생도 이해할 수 있게 비유로 설명해줘.">
+            <span class="preset-icon">💡</span>
+            <span class="preset-label">쉬운 개념 설명</span>
+          </button>
+          <button class="preset-item" data-prompt="vLLM의 PagedAttention 알고리즘 동작 원리와 장점을 설명해줘.">
+            <span class="preset-icon">⚡</span>
+            <span class="preset-label">vLLM 아키텍처 분석</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="section-title">서버 정보</div>
+        <div class="server-info-card">
+          <div class="info-row">
+            <span class="info-label">Endpoint:</span>
+            <span class="info-value" id="endpointDisplay">gpu2:8000</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Active Model:</span>
+            <span class="info-value highlight" id="activeModelDisplay">Loading...</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Status:</span>
+            <span class="status-badge" id="sidebarStatusBadge">
+              <span class="status-dot"></span>
+              <span class="status-text">Checking...</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <button class="btn-text-icon" id="settingsToggleBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          파라미터 설정
+        </button>
+        <button class="btn-icon" id="themeToggleBtn" title="다크/라이트 모드 전환">
+          <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+          <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Chat Workspace -->
+    <main class="main-content">
+      
+      <!-- Top Navigation Bar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="btn-icon mobile-toggle" id="sidebarToggleBtn" title="메뉴 열기">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </button>
+          
+          <!-- Model Selection Dropdown -->
+          <div class="model-select-wrapper">
+            <svg class="model-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+              <polyline points="2 17 12 22 22 17"></polyline>
+              <polyline points="2 12 12 17 22 12"></polyline>
+            </svg>
+            <select id="modelSelector">
+              <option value="unsloth/Qwen3.8-27B-NVFP4">unsloth/Qwen3.8-27B-NVFP4</option>
+            </select>
+          </div>
+
+          <!-- Connection Status Pill -->
+          <div class="status-pill online" id="topbarStatusPill">
+            <span class="status-dot"></span>
+            <span class="status-label">LLM 연결됨</span>
+          </div>
+
+          <!-- Thinking Mode Switcher (Fast / No-Think vs Deep Thinking) -->
+          <div class="thinking-mode-switcher" id="thinkingModeSwitcher">
+            <button class="mode-btn active" data-mode="fast" title="사고 과정 없이 즉시 본문 답변 생성 (토큰 절약 & 초고속)">
+              <span class="mode-icon">⚡</span>
+              <span class="mode-text">빠른 답변 (No-Think)</span>
+            </button>
+            <button class="mode-btn" data-mode="deep" title="사고 과정(Reasoning)을 거쳐 깊이 있는 추론 후 답변 생성">
+              <span class="mode-icon">🧠</span>
+              <span class="mode-text">심층 사고 (Thinking)</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <button class="btn-outline" id="clearChatBtn" title="현재 대화 지우기">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            <span>비우기</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Chat Stream Messages Area -->
+      <div class="chat-container" id="chatContainer">
+        
+        <!-- Welcome View (Visible when empty) -->
+        <div class="welcome-screen" id="welcomeScreen">
+          <div class="welcome-badge">실시간 토큰 스트리밍</div>
+          <h1 class="welcome-title">무엇을 도와드릴까요?</h1>
+          <p class="welcome-desc">
+            vLLM 서버 (<code id="welcomeEndpoint">http://gpu2:8000/v1</code>) 기반으로<br>
+            <strong>⚡ 빠른 답변(No-Think)</strong>과 <strong>🧠 심층 사고(Reasoning)</strong>를 자유롭게 전환하며 스트리밍합니다.
+          </p>
+
+          <div class="cards-grid">
+            <div class="feature-card" data-prompt="Python으로 고속 웹 크롤러를 작성하고 비동기 처리하는 방법을 알려줘.">
+              <div class="card-icon">💻</div>
+              <h3>코드 작성 & 디버깅</h3>
+              <p>파이썬, 자바스크립트 등 다양한 프로그래밍 코드 구현 및 분석</p>
+            </div>
+            <div class="feature-card" data-prompt="양자 컴퓨터와 기존 슈퍼컴퓨터의 연산 방식 차이점을 비교해줘.">
+              <div class="card-icon">🧠</div>
+              <h3>복합 추론 & 설명</h3>
+              <p>DeepSeek/Qwen Reasoning 모델의 깊이 있는 사고 과정 확인</p>
+            </div>
+            <div class="feature-card" data-prompt="한국 현대문학의 주요 흐름을 3문장으로 간결하게 요약해줘.">
+              <div class="card-icon">📝</div>
+              <h3>텍스트 요약 및 생성</h3>
+              <p>문서 요약, 창의적 글쓰기, 전문 번역 및 분석</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dynamic Message List -->
+        <div class="messages-list" id="messagesList"></div>
+
+      </div>
+
+      <!-- Settings Drawer / Modal -->
+      <div class="settings-drawer" id="settingsDrawer">
+        <div class="settings-content">
+          <div class="settings-header">
+            <h3>⚙️ 추론 파라미터 설정</h3>
+            <button class="btn-icon" id="closeSettingsBtn">✕</button>
+          </div>
+          <div class="settings-body">
+            <div class="form-group">
+              <label for="thinkingModeSelect">추론 모드 (Reasoning Mode)</label>
+              <select id="thinkingModeSelect" class="form-select">
+                <option value="fast">⚡ 빠른 답변 (No-Think / 사고 토큰 0, 초고속)</option>
+                <option value="deep">🧠 심층 사고 (Deep Thinking / 복합 논리 추론)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="systemPromptInput">시스템 프롬프트 (System Prompt)</label>
+              <textarea id="systemPromptInput" rows="2" placeholder="예: 당신은 친절하고 전문적인 AI 어시스턴트입니다."></textarea>
+              <div class="prompt-preset-chips">
+                <button type="button" class="chip-btn" data-sys="당신은 간결하고 명확하게 핵심만을 요약하여 답변하는 AI입니다. 불필요한 서론/사족 없이 즉시 핵심을 답하세요.">⚡ 핵심 요약</button>
+                <button type="button" class="chip-btn" data-sys="당신은 최고 수준의 시니어 소프트웨어 엔지니어입니다. 실무에 바로 사용할 수 있는 실용적이고 안정적인 코드를 작성해 주세요.">💻 코드 개발</button>
+                <button type="button" class="chip-btn" data-sys="당신은 친절하고 전문적인 AI 어시스턴트입니다. 이해하기 쉽게 친절히 설명해 주세요.">💡 친절한 설명</button>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="tempInput">Temperature: <span id="tempVal">0.7</span></label>
+                <input type="range" id="tempInput" min="0" max="1.5" step="0.05" value="0.7">
+              </div>
+              <div class="form-group">
+                <label for="maxTokensInput">Max Tokens: <span id="maxTokensVal">16384</span></label>
+                <input type="range" id="maxTokensInput" min="1024" max="24576" step="512" value="16384">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Input Area -->
+      <div class="input-section" id="inputSection">
+        
+        <!-- Attached Images Preview Bar -->
+        <div class="image-preview-bar" id="imagePreviewBar" style="display: none;"></div>
+
+        <div class="input-container" id="inputContainer">
+          
+          <!-- Image Attachment Button -->
+          <input type="file" id="imageFileInput" accept="image/png, image/jpeg, image/webp, image/gif" multiple style="display: none;">
+          <button type="button" class="btn-attach" id="attachBtn" title="이미지 첨부 (또는 복사 후 붙여넣기/드래그)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <circle cx="8.5" cy="8.5" r="1.5"></circle>
+              <polyline points="21 15 16 10 5 21"></polyline>
+            </svg>
+          </button>
+
+          <textarea 
+            id="promptInput" 
+            placeholder="LLM에 질문을 입력하세요... (이미지 첨부: 🖼️ 버튼, 복사+붙여넣기, 드래그&드롭)" 
+            rows="1"
+          ></textarea>
+          
+          <div class="input-actions">
+            <div class="stream-stats-inline" id="streamStats">
+              <span class="stat-item" id="tokenCountStat" style="display: none;">0 tokens</span>
+              <span class="stat-item" id="speedStat" style="display: none;">0 tok/s</span>
+            </div>
+            
+            <button class="send-btn" id="sendBtn" title="전송">
+              <svg class="send-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+              <svg class="stop-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="display: none;">
+                <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="input-footer-note">
+          vLLM 실시간 스트리밍 • Qwen 3.8 비전(Vision) & Reasoning 지원
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Image Lightbox Modal -->
+  <div class="image-lightbox-modal" id="imageLightboxModal" style="display: none;">
+    <div class="lightbox-overlay" id="lightboxOverlay"></div>
+    <div class="lightbox-content">
+      <img id="lightboxImg" src="" alt="확대 이미지">
+      <button class="lightbox-close-btn" id="lightboxCloseBtn">✕</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

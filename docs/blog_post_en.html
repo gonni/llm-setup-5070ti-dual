@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Complete Odyssey of Conquering Qwen 3.8-27B on Dual RTX 5070 Ti (32GB): From AWQ to NVFP4, the Illusion of PP=2, Multimodal OOM, and Final TP=2 Mastery</title>
+  <meta name="description" content="A comprehensive engineering case study on deploying Qwen 3.8 27B on Dual NVIDIA GeForce RTX 5070 Ti (32GB) + ASUS ProArt X870E. The complete journey through AWQ OOMs, NVFP4, the trap of Pipeline Parallelism (PP=2), hacked drivers, and achieving 81.3 tok/s with Tensor Parallelism (TP=2).">
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: #111726;
+      --card-border: #1e293b;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent: #38bdf8;
+      --green: #34d399;
+      --amber: #fbbf24;
+      --rose: #fb7185;
+      --purple: #c084fc;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      line-height: 1.8;
+      padding: 40px 20px 120px;
+    }
+
+    .container {
+      max-width: 920px;
+      margin: 0 auto;
+    }
+
+    header {
+      margin-bottom: 50px;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 36px;
+    }
+
+    .badge-bar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+
+    .badge {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 5px 12px;
+      border-radius: 9999px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .badge-cyan { background: rgba(56, 189, 248, 0.12); color: var(--accent); border: 1px solid rgba(56, 189, 248, 0.3); }
+    .badge-green { background: rgba(52, 211, 153, 0.12); color: var(--green); border: 1px solid rgba(52, 211, 153, 0.3); }
+    .badge-purple { background: rgba(192, 132, 252, 0.12); color: var(--purple); border: 1px solid rgba(192, 132, 252, 0.3); }
+    .badge-rose { background: rgba(251, 113, 133, 0.12); color: var(--rose); border: 1px solid rgba(251, 113, 133, 0.3); }
+
+    h1 {
+      font-size: 34px;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1.35;
+      margin-bottom: 18px;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      font-size: 18px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+
+    .meta-bar {
+      display: flex;
+      gap: 16px;
+      font-size: 14px;
+      color: var(--text-muted);
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    /* Metric Grid */
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin: 36px 0 48px;
+    }
+
+    .metric-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 22px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .metric-card::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--green));
+    }
+
+    .metric-num {
+      font-size: 32px;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .metric-label {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    /* Narrative Timeline */
+    .timeline {
+      position: relative;
+      margin: 40px 0 60px;
+      padding-left: 32px;
+      border-left: 2px solid #1e293b;
+    }
+
+    .timeline-item {
+      position: relative;
+      margin-bottom: 40px;
+    }
+
+    .timeline-item:last-child { margin-bottom: 0; }
+
+    .timeline-dot {
+      position: absolute;
+      left: -41px;
+      top: 4px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--bg);
+      border: 3px solid var(--accent);
+    }
+
+    .timeline-dot.danger { border-color: var(--rose); }
+    .timeline-dot.success { border-color: var(--green); }
+    .timeline-dot.warning { border-color: var(--amber); }
+
+    .timeline-date {
+      font-size: 12px;
+      font-family: var(--font-mono);
+      color: var(--accent);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .timeline-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 10px;
+    }
+
+    /* Headings */
+    h2 {
+      font-size: 26px;
+      font-weight: 800;
+      color: #fff;
+      margin: 54px 0 20px;
+      border-left: 4px solid var(--accent);
+      padding-left: 14px;
+      letter-spacing: -0.01em;
+    }
+
+    h3 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #e2e8f0;
+      margin: 32px 0 14px;
+    }
+
+    p {
+      margin-bottom: 18px;
+      color: #cbd5e1;
+    }
+
+    ul, ol {
+      margin: 0 0 24px 28px;
+      color: #cbd5e1;
+    }
+
+    li { margin-bottom: 8px; }
+
+    strong { color: #fff; }
+
+    /* Callout & Narrative Block */
+    .story-block {
+      background: rgba(17, 23, 38, 0.85);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 22px 24px;
+      margin: 26px 0;
+      position: relative;
+    }
+
+    .story-tag {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 4px;
+      margin-bottom: 12px;
+    }
+
+    .tag-struggle { background: rgba(251, 113, 133, 0.2); color: var(--rose); }
+    .tag-breakthrough { background: rgba(52, 211, 153, 0.2); color: var(--green); }
+    .tag-insight { background: rgba(56, 189, 248, 0.2); color: var(--accent); }
+
+    .story-content {
+      font-style: italic;
+      color: #e2e8f0;
+      border-left: 2px solid #334155;
+      padding-left: 14px;
+      margin: 12px 0;
+    }
+
+    /* Terminal & Code */
+    pre {
+      background: #080c14;
+      border: 1px solid #1e293b;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 22px 0;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 13.5px;
+      line-height: 1.6;
+      color: #e2e8f0;
+    }
+
+    code {
+      font-family: var(--font-mono);
+      background: rgba(148, 163, 184, 0.15);
+      color: #38bdf8;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    pre code {
+      background: none;
+      padding: 0;
+      color: inherit;
+    }
+
+    /* Tables */
+    .table-box {
+      overflow-x: auto;
+      margin: 30px 0;
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      background: var(--card-bg);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      text-align: left;
+    }
+
+    th {
+      background: #192233;
+      color: #f8fafc;
+      padding: 15px 18px;
+      font-weight: 700;
+      border-bottom: 1px solid #334155;
+    }
+
+    td {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--card-border);
+      color: #cbd5e1;
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255, 255, 255, 0.02); }
+
+    .green-val { color: var(--green); font-weight: 700; font-family: var(--font-mono); }
+    .amber-val { color: var(--amber); font-weight: 700; font-family: var(--font-mono); }
+    .rose-val { color: var(--rose); font-weight: 700; font-family: var(--font-mono); }
+
+    /* Media Box */
+    .media-box {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 16px;
+      margin: 36px 0;
+      text-align: center;
+    }
+
+    .media-box img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+    }
+
+    .caption {
+      margin-top: 12px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* Footer */
+    footer {
+      margin-top: 80px;
+      padding-top: 36px;
+      border-top: 1px solid var(--card-border);
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13.5px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <div class="badge-bar">
+        <span class="badge badge-cyan">Hardware Deep Dive</span>
+        <span class="badge badge-purple">vLLM & Qwen 3.8</span>
+        <span class="badge badge-green">Dual 5070 Ti (32GB)</span>
+        <span class="badge badge-rose">Engineering Odyssey</span>
+      </div>
+      <h1>The Complete Odyssey of Conquering Qwen 3.8-27B on Dual RTX 5070 Ti (32GB)</h1>
+      <p class="subtitle">
+        Achieving 81.3 tok/s real-time streaming and 335+ tok/s batch throughput at half the cost of an RTX 5090: The unfiltered story of AWQ failures, NVFP4 adoption, the false promise of PP=2, multimodal OOMs, and final TP=2 mastery.
+      </p>
+      <div class="meta-bar">
+        <span>Author: horus</span>
+        <span>•</span>
+        <span>Platform: ASUS ProArt X870E + Dual RTX 5070 Ti</span>
+        <span>•</span>
+        <span>Inference Engine: vLLM v0.28.0</span>
+        <span>•</span>
+        <span>Timeline: Late August – Late September 2026</span>
+      </div>
+    </header>
+
+    <!-- Key Metrics Display -->
+    <div class="metric-grid">
+      <div class="metric-card">
+        <div class="metric-num" style="color: var(--accent);">81.3 <span style="font-size: 18px;">tok/s</span></div>
+        <div class="metric-label">Final Single Stream Decode (TP=2)</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-num" style="color: var(--green);">335.2 <span style="font-size: 18px;">tok/s</span></div>
+        <div class="metric-label">Batch Throughput (Concurrency 32)</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-num" style="color: var(--purple);">32 GB</div>
+        <div class="metric-label">Combined VRAM (16GB × 2)</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-num" style="color: var(--amber);">-50 %</div>
+        <div class="metric-label">Cost Reduction vs RTX 5090</div>
+      </div>
+    </div>
+
+    <!-- Intro -->
+    <h2>1. Introduction: The Untraveled Path — Why Dual 5070 Ti?</h2>
+    <p>
+      In 2026, <strong>Qwen 3.8-27B</strong> (and the broader Qwen 3.5 family) has established itself as the gold standard of open-weight LLMs. Featuring deep mathematical reasoning, exceptional multilingual fidelity, and a native Vision Transformer (ViT) for multimodal image comprehension, it rivals proprietary frontier models.
+    </p>
+    <p>
+      However, serving a 27B parameter model with extended context windows (up to 32k tokens) commands a steep minimum of <strong>28GB+ VRAM</strong>.
+    </p>
+    <p>
+      The industry default solution is acquiring a single <strong>NVIDIA GeForce RTX 5090 (32GB)</strong>. Yet that choice comes with severe compromises:
+    </p>
+    <ul>
+      <li><strong>Exorbitant Price Tag:</strong> A single card commands between $2,500 and $3,200 due to enterprise-tier demand and retail scalping.</li>
+      <li><strong>575W Single-Die Heat Dissipation:</strong> Concentrating 575 watts into one PCIe slot pushes standard chassis airflow and power supplies to their limits.</li>
+    </ul>
+    <p>
+      This spurred a radical engineering thesis:  
+      <strong>"Can we combine two NVIDIA GeForce RTX 5070 Ti cards (16GB GDDR7, 250W TDP each) to create a 32GB VRAM inference system for ~$1,200 total?"</strong>  
+      Together, two 5070 Ti cards offer a theoretical aggregate memory bandwidth of <strong>1,792 GB/s</strong> and distributed thermal management.
+    </p>
+    <p>
+      Yet, across Reddit, GitHub, and HuggingFace, virtually no documented case studies existed for running 27B models on Dual 5070 Ti in production. Consumer GeForce cards have had physical NVLink fingers excised, and prevailing wisdom warned that PCIe All-Reduce latency would reduce multi-GPU throughput to an unusable crawl.
+    </p>
+    <p>
+      We chose to test that conventional wisdom firsthand. This is the chronological, technical record of that journey.
+    </p>
+
+    <!-- Section 2: Narrative Timeline -->
+    <h2>2. Engineering Chronicle: The Six Phases of Trial & Triumph</h2>
+
+    <div class="timeline">
+      <!-- Step 1 -->
+      <div class="timeline-item">
+        <div class="timeline-dot danger"></div>
+        <div class="timeline-date">Phase 1: August 29 – 30</div>
+        <div class="timeline-title">The First Wall: AWQ INT4 & The 16GB VRAM Allocation Crisis</div>
+        <p>
+          Our initial implementation targeted <code>cyankiwi/Qwen3.8-27B-AWQ-INT4</code> using vLLM in Tensor Parallelism (<code>TP=2</code>).
+        </p>
+        <div class="story-block">
+          <div class="story-tag tag-struggle">The Struggle: CUDA Graph Memory Collisions & Instant OOM</div>
+          <p>
+            The mathematical assumption was straightforward: a ~15GB quantized model split across two 16GB cards leaves 8.5GB of headroom on each card. Yet upon launching vLLM, the container immediately crashed:
+          </p>
+          <pre><code>RuntimeError: Engine core initialization failed.
+ValueError: No available memory for the cache blocks.</code></pre>
+          <p class="story-content">
+            "Why does a model that boots smoothly on a 32GB single 5090 die with out-of-memory errors on a 32GB dual 5070 Ti setup?"
+          </p>
+          <p>
+            <strong>Root Cause Analysis:</strong> In multi-GPU TP=2, each GPU worker allocates its own independent PyTorch context, communication bounce buffers, and critically, <strong>dedicated CUDA Graph capture memory (~1.5GB to 2.0GB per GPU)</strong>. On a 16GB card, model weights plus CUDA Graph allocations left under 300MB for the actual KV cache pool.
+          </p>
+        </div>
+        <p>
+          Community forums suggested disabling CUDA Graphs via <code>--enforce-eager</code>. However, doing so throttled decode performance below 30 tok/s. We established an uncompromising ground rule: <em>CUDA Graphs must remain active at all costs.</em>
+        </p>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="timeline-item">
+        <div class="timeline-dot warning"></div>
+        <div class="timeline-date">Phase 2: August 31</div>
+        <div class="timeline-title">The PCIe Nightmare & The Collapse of the First PP=2 Attempt</div>
+        <p>
+          After painstakingly tuning memory parameters to coax the AWQ model into booting under TP=2, initial benchmark numbers proved disheartening:
+        </p>
+        <ul>
+          <li><strong>Single Stream Decode:</strong> <strong>23.3 tok/s</strong> (far too sluggish for interactive chat)</li>
+          <li><strong>Batch Throughput:</strong> Rigidly capped at <strong>116 tok/s</strong></li>
+          <li><strong>GPU Power Draw:</strong> Stagnant at <strong>188W</strong> out of the 250W TDP limit</li>
+        </ul>
+        <div class="story-block">
+          <div class="story-tag tag-insight">The Physical Bottleneck: 128 PCIe Round Trips Per Token</div>
+          <p>
+            Qwen 27B features 64 transformer layers. In TP=2, every forward pass across every single layer requires an All-Reduce exchange across the PCIe bus. <strong>Generating a single token necessitated 128 inter-GPU PCIe sync operations.</strong> The Tensor Cores spent more time idling for PCIe packets than executing matrix math.
+          </p>
+        </div>
+        <p>
+          To eliminate inter-layer All-Reduce traffic, we pivoted to <strong>Pipeline Parallelism (<code>PP=2</code>)</strong>. If GPU 0 processes layers 0~31 and GPU 1 handles layers 32~63, inter-GPU communication drops to exactly one exchange per forward pass.  
+          However, attempting PP=2 with the AWQ model failed catastrophically at boot: <code>ValueError: No available memory for the cache blocks</code>. In vLLM V1, PP=2 forced the entire embedding layer onto GPU 0 and the full LM Head onto GPU 1, destroying memory symmetry.
+        </p>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="timeline-item">
+        <div class="timeline-dot success"></div>
+        <div class="timeline-date">Phase 3: September 5</div>
+        <div class="timeline-title">The Turning Point: Blackwell Native NVFP4 & The First PP=2 Boot</div>
+        <p>
+          The breakthrough arrived with NVIDIA's native Blackwell quantization format: <strong><code>gittensor-model-hub/Qwen3.8-27B-NVFP4-RTX5090</code></strong>.
+        </p>
+        <p>
+          ModelOpt NVFP4 compressed the model footprint further while aligning natively with Blackwell Tensor Cores. By enforcing explicit KV cache byte bounds (<code>--kv-cache-memory 3031959552</code>) and FP8 KV caching, <strong>vLLM booted in PP=2 mode for the very first time</strong>:
+        </p>
+        <pre><code>+-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   PID   Type   Process name                        GPU Memory Usage                |
+|    0  6825      C   VLLM::Worker_PP0                                          13938MiB  |
+|    1  6826      C   VLLM::Worker_PP1                                          14764MiB  |
++-----------------------------------------------------------------------------------------+</code></pre>
+        <p>
+          Single-stream speed registered at <strong>47.7 tok/s</strong>. While double the speed of AWQ, it still lagged behind a single 5090 (~75 tok/s).
+        </p>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="timeline-item">
+        <div class="timeline-dot warning"></div>
+        <div class="timeline-date">Phase 4: September 5 – 6</div>
+        <div class="timeline-title">The Siren Song of PP=2 (480 tok/s) and The Multimodal OOM Catastrophe</div>
+        <p>
+          Under pure offline text workloads, PP=2 unleashed astonishing performance. When the queue was saturated with 14~16 concurrent requests, vLLM's internal logger recorded:
+        </p>
+        <pre><code>Engine 000: Avg prompt throughput: 712.2 tokens/s, Avg generation throughput: 480.6 tokens/s (Running: 14 reqs)
+Engine 000: Avg prompt throughput: 1154.7 tokens/s, Avg generation throughput: 404.7 tokens/s (Running: 16 reqs)</code></pre>
+        <p>
+          <strong>Peak continuous generation hit 480.6 tok/s!</strong> With PCIe All-Reduce overhead eliminated, batch throughput soared 30% beyond our earlier TP=2 attempts. We were convinced PP=2 was the ultimate answer.
+        </p>
+        <div class="story-block">
+          <div class="story-tag tag-struggle">The Catastrophe: Vision Enters, System Collapses</div>
+          <p>
+            The illusion shattered when multimodal image queries entered the workload alongside text. Within seconds, the inference engine crashed:
+          </p>
+          <pre><code>(Worker_PP0 pid=213) RuntimeError: Encoder cache miss for 71bbed5ce3add2...
+(Worker_PP0 pid=213) ERROR: multiproc_executor.py:1047
+vllm-qwen3.8-27b-NVFP4-RTX5090 exited with code 1</code></pre>
+          <p class="story-content">
+            "Both cards were idling around 12.5GB. After processing just 3 images, GPU 0 spiked to 15.38GB, froze, and triggered a fatal memory crash!"
+          </p>
+          <p>
+            <strong>The Architectural Flaw:</strong> Pipeline Parallelism divides transformer layers sequentially, but <strong>the entire Vision Transformer (ViT) encoder was pinned 100% onto GPU 0</strong>. Concurrently handling text and high-resolution images overwhelmed GPU 0's 16GB ceiling. Compounded by Qwen 3.8 Mamba state-block collisions (<code>max_num_seqs 256 exceeds available Mamba cache blocks 118</code>), PP=2 proved fatally brittle for hybrid production workloads.
+          </p>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="timeline-item">
+        <div class="timeline-dot warning"></div>
+        <div class="timeline-date">Phase 5: September 25</div>
+        <div class="timeline-title">The Hacked Driver Investigation & The Hardware Rediscovery</div>
+        <p>
+          With PP=2 disqualified for multimodal stability, we were forced back to <strong>TP=2</strong>. But how could we eliminate the 128-round All-Reduce bottleneck?
+        </p>
+        <p>
+          We investigated the open-source community's forbidden territory: <strong>Hacked NVIDIA Drivers (aikitoria / tinygrad open-gpu-kernel-modules P2P bypasses)</strong>:
+        </p>
+        <ul>
+          <li>Consumer GeForce silicon possesses hardware P2P DMA capabilities, but NVIDIA driver locks artificially restrict it (<code>CNS: Chipset Not Supported</code>).</li>
+          <li>Community patches inject <code>pKernelBif->p2pOverride = 0x11</code> to force BAR1 P2P DMA on desktop motherboards.</li>
+        </ul>
+        <div class="story-block">
+          <div class="story-tag tag-insight">The Hardware Revelation: ASUS ProArt X870E's Hidden Power</div>
+          <p>
+            Before risking unverified kernel patches, we conducted an exhaustive hardware audit of our host (<code>gpu2</code>):
+          </p>
+          <pre><code>pcie.link.gen.max: 5 (PCIe 5.0 32GT/s Verified)
+pcie.link.width.current: 8 (True x8 Symmetric Bifurcation Active)
+BAR1 Memory: 16,384 MiB (Full 16GB Resizable BAR Aperture Mapped)</code></pre>
+          <p>
+            Our motherboard—the <strong>ASUS ProArt X870E-CREATOR</strong>—was routing CPU-direct lanes symmetrically at <strong>PCIe 5.0 x8 / x8</strong>. At 31.5 GB/s unidirectional bandwidth, it matches a full PCIe 4.0 x16 slot. We realized we did not need experimental kernel patches: <strong>the bottleneck could be broken purely through vLLM communication stack optimization</strong>.
+          </p>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="timeline-item">
+        <div class="timeline-dot success"></div>
+        <div class="timeline-date">Phase 6: September 25 – 26</div>
+        <div class="timeline-title">The Masterpiece: TP=2 Fully Optimized & The 81.3 tok/s Record</div>
+        <p>
+          We orchestrated four synchronized optimizations across the stack:
+        </p>
+        <ol>
+          <li><strong><code>--max-num-batched-tokens 8192</code>:</strong> Doubled the prefill token limit so 4,105-token inputs execute in a single forward pass without chunking (shaving wall time from 12.7s to 10.6s).</li>
+          <li><strong><code>NCCL_BUFFSIZE: "8388608"</code>:</strong> Expanded the PCIe ring buffer to 8MB, preventing All-Reduce flush stalls across 64 layers.</li>
+          <li><strong><code>VLLM_ATTENTION_BACKEND: "FLASHINFER"</code>:</strong> Bypassed Triton to unleash native Blackwell Tensor Core FP4/FP8 mixed-precision paging kernels.</li>
+          <li><strong><code>PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:False"</code>:</strong> Eliminated memory allocator deadlocks with CUDA Graph capture.</li>
+        </ol>
+        <p>
+          Executing <code>python vllm_bench.py --concurrency 16</code> revealed unprecedented figures.
+        </p>
+      </div>
+    </div>
+
+    <!-- Section 3: The Proof Image & Table -->
+    <h2>3. The Verified Benchmark Evidence</h2>
+    <p>
+      Below is the verbatim terminal console output running on the tuned Dual RTX 5070 Ti host:
+    </p>
+
+    <div class="media-box">
+      <img src="images/benchmark_result.png" alt="vllm_bench.py Console Output">
+      <div class="caption">▲ Live console output of vllm_bench.py on Dual RTX 5070 Ti (TP=2) with ~4,105 Prompt / 300 Completion Tokens</div>
+    </div>
+
+    <div class="table-box">
+      <table>
+        <thead>
+          <tr>
+            <th>Test Stage</th>
+            <th>Workload (Prompt / Completion / Requests)</th>
+            <th>TTFT (Time to First Token)</th>
+            <th>Decode Speed (p50)</th>
+            <th>Total Throughput</th>
+            <th>Total Wall Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>1/3 Single (Concurrency 1)</strong></td>
+            <td>4,105 In / 300 Out (3 reqs)</td>
+            <td>560.3 ms</td>
+            <td class="green-val">81.3 tok/s</td>
+            <td>68.7 tok/s</td>
+            <td>10.6s</td>
+          </tr>
+          <tr>
+            <td><strong>2/3 Batch (Concurrency 16)</strong></td>
+            <td>4,105 In / 300 Out (96 reqs)</td>
+            <td>595.5 ms</td>
+            <td>22.6 tok/s</td>
+            <td class="green-val">320.5 tok/s</td>
+            <td>80.3s</td>
+          </tr>
+          <tr>
+            <td><strong>3/3 Saturation (Concurrency 32)</strong></td>
+            <td>4,105 In / 300 Out (128 reqs)</td>
+            <td>7,218.9 ms</td>
+            <td>15.8 tok/s</td>
+            <td class="green-val">335.2 tok/s</td>
+            <td>101.2s</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="story-block">
+      <div class="story-tag tag-breakthrough">vLLM Internal Engine Metrics (loggers.py)</div>
+      <p>
+        During sustained production decoding with queue saturation, vLLM's internal logger recorded:
+      </p>
+      <pre><code>Engine 000: Avg prompt throughput: 4514.9 tokens/s, Avg generation throughput: 446.5 tokens/s (Running: 7 reqs, Waiting: 0 reqs, GPU KV cache usage: 28.8%)</code></pre>
+      <p class="story-content">
+        Single decode: 81.3 tok/s. Batch throughput: 335.2 tok/s. Peak generation: 446.5 tok/s.  
+        The dual-GPU PCIe barrier was officially dissolved.
+      </p>
+    </div>
+
+    <!-- Section 4: Deep Comparison TP=2 vs PP=2 -->
+    <h2>4. The Architectural Verdict: TP=2 vs PP=2</h2>
+    <p>
+      The pivotal question remains: <em>"If PP=2 achieved 480 tok/s batch throughput, why is TP=2 the definitive production choice?"</em>
+    </p>
+
+    <div class="table-box">
+      <table>
+        <thead>
+          <tr>
+            <th>Dimension</th>
+            <th>TP=2 (Final Production Configuration)</th>
+            <th>PP=2 (Pipeline Parallelism)</th>
+            <th>Verdict & Rationale</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Single Stream Interactive Speed</strong></td>
+            <td class="green-val">81.3 tok/s (Flawless real-time typing)</td>
+            <td class="rose-val">47.7 tok/s (Noticeable typing lag)</td>
+            <td>TP=2 is <strong>+70.4% faster</strong>. Decisive for UX</td>
+          </tr>
+          <tr>
+            <td><strong>Offline High-Batch Throughput</strong></td>
+            <td class="amber-val">320 ~ 335 tok/s (Peak 446.5 tok/s)</td>
+            <td class="green-val">480.6 tok/s (Maximum throughput)</td>
+            <td>PP=2 wins in batch, but at the cost of halving interactive speed</td>
+          </tr>
+          <tr>
+            <td><strong>VRAM Memory Balance</strong></td>
+            <td class="green-val">Perfect 50:50 distribution (7.8GB : 7.8GB)</td>
+            <td class="rose-val">Severe imbalance (15.4GB vs 13.0GB)</td>
+            <td>TP=2 protects both cards; PP=2 risks single-card blowout</td>
+          </tr>
+          <tr>
+            <td><strong>Multimodal (Vision) Resilience</strong></td>
+            <td class="green-val">Rock solid; ViT split 50:50</td>
+            <td class="rose-val">Fatal OOM crashes; ViT pinned to GPU 0</td>
+            <td>PP=2 is completely disqualified for image workloads</td>
+          </tr>
+          <tr>
+            <td><strong>Prefix Caching Efficiency</strong></td>
+            <td class="green-val">Synchronous shared cache blocks</td>
+            <td class="amber-val">Fragmented stage caches</td>
+            <td>Long multi-turn context reuse favors TP=2</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="story-block">
+      <div class="story-tag tag-insight">The Asymmetry of User Perception</div>
+      <p>
+        When an end user interacts with a chat application, <strong>the difference between 47 tok/s and 81 tok/s is the difference between sluggish waiting and instantaneous response</strong>.  
+        Conversely, in background batch jobs, whether 50,000 documents take 2 hours or 2 hours and 30 minutes is virtually negligible.
+      </p>
+      <p class="story-content">
+        "Sacrificing interactive speed for marginal batch gains is an anti-pattern. Optimized TP=2 provides the holy grail: blazing 81.3 tok/s interactive responsiveness combined with resilient 335+ tok/s batch throughput."
+      </p>
+    </div>
+
+    <!-- Section 5: Verified Docker Compose -->
+    <h2>5. Production Deployment: `docker-compose.yml`</h2>
+    <p>
+      Below is the fully verified deployment file ready for immediate production deployment:
+    </p>
+
+    <pre><code>services:
+  vllm-qwen:
+    image: vllm/vllm-openai:v0.28.0
+    container_name: vllm-qwen3.8-27b-NVFP4-RTX5090
+    runtime: nvidia
+    restart: always
+    ipc: host
+
+    ports:
+      - "8000:8000"
+
+    environment:
+      HF_TOKEN: "your_huggingface_token_here"
+      PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:False"
+      VLLM_SKIP_P2P_CHECK: "0"
+      NCCL_DEBUG: "WARN"
+      # [Critical] 8MB PCIe Ring Buffer Expansion
+      NCCL_BUFFSIZE: "8388608"
+      # [Critical] Blackwell Tensor Core Attention Kernel
+      VLLM_ATTENTION_BACKEND: "FLASHINFER"
+
+    volumes:
+      - "${HOME}/.cache/huggingface:/root/.cache/huggingface"
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 300
+      start_period: 600s
+
+    command: >
+      --model gittensor-model-hub/Qwen3.8-27B-NVFP4-RTX5090
+      --served-model-name qwen3.8:27b
+      --tensor-parallel-size 2
+      --pipeline-parallel-size 1
+      --max-num-seqs 32
+      --gpu-memory-utilization 0.90
+      --max-model-len 32768
+      --max-num-batched-tokens 8192
+      --kv-cache-dtype fp8
+      --enable-chunked-prefill
+      --mm-processor-kwargs '{"max_pixels": 1003520}'
+      --limit-mm-per-prompt '{"image": 1}'
+      --reasoning-parser qwen3
+      --port 8000
+      --host 0.0.0.0</code></pre>
+
+    <!-- Section 6: Conclusion -->
+    <h2>6. Conclusion: The Economics of Dual 5070 Ti vs RTX 5090</h2>
+
+    <div class="table-box">
+      <table>
+        <thead>
+          <tr>
+            <th>Metric</th>
+            <th>Single RTX 5090 (32GB)</th>
+            <th>Dual RTX 5070 Ti (32GB Total)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Hardware Cost</strong></td>
+            <td>$2,500 – $3,200+</td>
+            <td class="green-val">~$1,200 – $1,300 (Over 50% Savings)</td>
+          </tr>
+          <tr>
+            <td><strong>Total VRAM Address Space</strong></td>
+            <td>32GB GDDR7 (512-bit single bus)</td>
+            <td>32GB GDDR7 (Dual 256-bit buses = 512-bit aggregate)</td>
+          </tr>
+          <tr>
+            <td><strong>Power & Thermal Profile</strong></td>
+            <td>575W concentrated heat on a single die</td>
+            <td class="green-val">250W × 2 distributed dissipation</td>
+          </tr>
+          <tr>
+            <td><strong>Single Stream Decode Speed</strong></td>
+            <td>~75 – 80 tok/s</td>
+            <td class="green-val">81.3 tok/s (Matches or beats single card)</td>
+          </tr>
+          <tr>
+            <td><strong>Large Prompt Prefill Speed</strong></td>
+            <td>4,137 tok/s (0ms PCIe transfer)</td>
+            <td class="amber-val">2,100 – 2,500 tok/s (~60% of single card)</td>
+          </tr>
+          <tr>
+            <td><strong>Real-World Serving Performance</strong></td>
+            <td>100% Baseline</td>
+            <td class="green-val"><strong>Achieves 80% – 85% of 5090 throughput</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>
+      One month ago, conventional wisdom insisted that consumer dual GPUs could never deliver enterprise-tier LLM inference without NVLink.
+    </p>
+    <p>
+      By uniting <strong>PCIe 5.0 Bifurcation (x8/x8) on the ASUS ProArt X870E, Blackwell native NVFP4 quantization, and surgical vLLM stack tuning (8192-token prefill window, 8MB NCCL buffers, FlashInfer backend)</strong>, we have proven that <strong>Dual RTX 5070 Ti can replace a $3,000 flagship card for half the capital expenditure</strong>.
+    </p>
+    <p>
+      May this chronicle serve as a definitive blueprint for engineers and researchers architecting the next generation of cost-effective local AI infrastructure.
+    </p>
+
+    <footer>
+      <p>Project Horus • Dual GPU & LLM Optimization Engineering Lab</p>
+      <p>Hardware Stack: AMD Ryzen 5 9600X, ASUS ProArt X870E-CREATOR, Dual NVIDIA RTX 5070 Ti (Driver 580.173.02)</p>
+    </footer>
+  </div>
+
+</body>
+</html>

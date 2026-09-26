@@ -1,0 +1,59 @@
+services:
+  vllm:
+    image: vllm/vllm-openai:v0.28.0
+    container_name: vllm-qwen3.8-27b-NVFP4
+    runtime: nvidia
+    restart: always
+    ipc: host
+
+    ports:
+      - "8000:8000"
+
+    environment:
+      HF_TOKEN: "${HF_TOKEN:-your_huggingface_token_here}"
+      PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:False"
+
+      # Hardware P2P PCIe check
+      VLLM_SKIP_P2P_CHECK: "0"
+
+      # NCCL Ring buffer tuning (8MB)
+      NCCL_DEBUG: "WARN"
+      NCCL_BUFFSIZE: "8388608"
+
+      # Blackwell attention acceleration backend
+      VLLM_ATTENTION_BACKEND: "FLASHINFER"
+
+    volumes:
+      - "${HOME}/.cache/huggingface:/root/.cache/huggingface"
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 300
+      start_period: 600s
+
+    command: >
+      --model gittensor-model-hub/Qwen3.8-27B-NVFP4-RTX5090
+      --served-model-name qwen3.8:27b
+      --tensor-parallel-size 2
+      --pipeline-parallel-size 1
+      --max-num-seqs 32
+      --gpu-memory-utilization 0.90
+      --max-model-len 32768
+      --max-num-batched-tokens 8192
+      --kv-cache-dtype fp8
+      --enable-chunked-prefill
+      --mm-processor-kwargs '{"max_pixels": 1003520}'
+      --limit-mm-per-prompt '{"image": 1}'
+      --reasoning-parser qwen3
+      --port 8000
+      --host 0.0.0.0

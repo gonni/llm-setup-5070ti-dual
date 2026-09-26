@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dual RTX 5070 Ti (32GB)로 Qwen 3.8-27B를 정복하기까지의 모든 기록: AWQ에서 NVFP4, PP=2의 환상과 좌절, 그리고 TP=2 종결까지</title>
+  <meta name="description" content="단일 RTX 5090의 대안으로 구축한 Dual RTX 5070 Ti (32GB) + ASUS ProArt X870E 환경에서 vLLM, AWQ, NVFP4, PP=2의 치명적 함정, 해킹 드라이버 검토, 81.3 tok/s TP=2 최적화에 도달하기까지의 실전 엔지니어링 전 과정">
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: #111726;
+      --card-border: #1e293b;
+      --card-hover: #172033;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-glow: rgba(56, 189, 248, 0.15);
+      --green: #34d399;
+      --amber: #fbbf24;
+      --rose: #fb7185;
+      --purple: #c084fc;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Pretendard", "Apple SD Gothic Neo", "Segoe UI", Roboto, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      line-height: 1.8;
+      padding: 40px 20px 120px;
+    }
+
+    .container {
+      max-width: 920px;
+      margin: 0 auto;
+    }
+
+    header {
+      margin-bottom: 50px;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 36px;
+    }
+
+    .badge-bar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+
+    .badge {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 5px 12px;
+      border-radius: 9999px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .badge-cyan { background: rgba(56, 189, 248, 0.12); color: var(--accent); border: 1px solid rgba(56, 189, 248, 0.3); }
+    .badge-green { background: rgba(52, 211, 153, 0.12); color: var(--green); border: 1px solid rgba(52, 211, 153, 0.3); }
+    .badge-purple { background: rgba(192, 132, 252, 0.12); color: var(--purple); border: 1px solid rgba(192, 132, 252, 0.3); }
+    .badge-rose { background: rgba(251, 113, 133, 0.12); color: var(--rose); border: 1px solid rgba(251, 113, 133, 0.3); }
+
+    h1 {
+      font-size: 34px;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1.35;
+      margin-bottom: 18px;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      font-size: 18px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+
+    .meta-bar {
+      display: flex;
+      gap: 16px;
+      font-size: 14px;
+      color: var(--text-muted);
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    /* Metric Grid */
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin: 36px 0 48px;
+    }
+
+    .metric-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 22px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .metric-card::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--green));
+    }
+
+    .metric-num {
+      font-size: 32px;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .metric-label {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    /* Narrative Timeline */
+    .timeline {
+      position: relative;
+      margin: 40px 0 60px;
+      padding-left: 32px;
+      border-left: 2px solid #1e293b;
+    }
+
+    .timeline-item {
+      position: relative;
+      margin-bottom: 40px;
+    }
+
+    .timeline-item:last-child { margin-bottom: 0; }
+
+    .timeline-dot {
+      position: absolute;
+      left: -41px;
+      top: 4px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--bg);
+      border: 3px solid var(--accent);
+    }
+
+    .timeline-dot.danger { border-color: var(--rose); }
+    .timeline-dot.success { border-color: var(--green); }
+    .timeline-dot.warning { border-color: var(--amber); }
+
+    .timeline-date {
+      font-size: 12px;
+      font-family: var(--font-mono);
+      color: var(--accent);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .timeline-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 10px;
+    }
+
+    /* Headings */
+    h2 {
+      font-size: 26px;
+      font-weight: 800;
+      color: #fff;
+      margin: 54px 0 20px;
+      border-left: 4px solid var(--accent);
+      padding-left: 14px;
+      letter-spacing: -0.01em;
+    }
+
+    h3 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #e2e8f0;
+      margin: 32px 0 14px;
+    }
+
+    p {
+      margin-bottom: 18px;
+      color: #cbd5e1;
+    }
+
+    ul, ol {
+      margin: 0 0 24px 28px;
+      color: #cbd5e1;
+    }
+
+    li { margin-bottom: 8px; }
+
+    strong { color: #fff; }
+
+    /* Callout & Narrative Block */
+    .story-block {
+      background: rgba(17, 23, 38, 0.85);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 22px 24px;
+      margin: 26px 0;
+      position: relative;
+    }
+
+    .story-tag {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 4px;
+      margin-bottom: 12px;
+    }
+
+    .tag-struggle { background: rgba(251, 113, 133, 0.2); color: var(--rose); }
+    .tag-breakthrough { background: rgba(52, 211, 153, 0.2); color: var(--green); }
+    .tag-insight { background: rgba(56, 189, 248, 0.2); color: var(--accent); }
+
+    .story-content {
+      font-style: italic;
+      color: #e2e8f0;
+      border-left: 2px solid #334155;
+      padding-left: 14px;
+      margin: 12px 0;
+    }
+
+    /* Terminal & Code */
+    pre {
+      background: #080c14;
+      border: 1px solid #1e293b;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 22px 0;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 13.5px;
+      line-height: 1.6;
+      color: #e2e8f0;
+    }
+
+    code {
+      font-family: var(--font-mono);
+      background: rgba(148, 163, 184, 0.15);
+      color: #38bdf8;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    pre code {
+      background: none;
+      padding: 0;
+      color: inherit;
+    }
+
+    /* Tables */
+    .table-box {
+      overflow-x: auto;
+      margin: 30px 0;
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      background: var(--card-bg);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      text-align: left;
+    }
+
+    th {
+      background: #192233;
+      color: #f8fafc;
+      padding: 15px 18px;
+      font-weight: 700;
+      border-bottom: 1px solid #334155;
+    }
+
+    td {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--card-border);
+      color: #cbd5e1;
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255, 255, 255, 0.02); }
+
+    .green-val { color: var(--green); font-weight: 700; font-family: var(--font-mono); }
+    .amber-val { color: var(--amber); font-weight: 700; font-family: var(--font-mono); }
+    .rose-val { color: var(--rose); font-weight: 700; font-family: var(--font-mono); }
+
+    /* Media Box */
+    .media-box {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 16px;
+      margin: 36px 0;
+      text-align: center;
+    }
+
+    .media-box img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+    }
+
+    .caption {
+      margin-top: 12px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* Footer */
+    footer {
+      margin-top: 80px;
+      padding-top: 36px;
+      border-top: 1px solid var(--card-border);
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13.5px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <div class="badge-bar">
+        <span class="badge badge-cyan">Hardware Deep Dive</span>
+        <span class="badge badge-purple">vLLM & Qwen 3.8</span>
+        <span class="badge badge-green">Dual 5070 Ti (32GB)</span>
+        <span class="badge badge-rose">Engineering Odyssey</span>
+      </div>
+      <h1>Dual RTX 5070 Ti (32GB)로 Qwen 3.8-27B를 정복하기까지의 모든 기록</h1>
+      <p class="subtitle">
+        단일 RTX 5090의 절반 가격으로 달성한 기적: AWQ의 좌절, NVFP4 전환, PP=2의 환상과 멀티모달 OOM 대참사, 해킹 드라이버 검토를 거쳐 81.3 tok/s TP=2 종결에 이르기까지의 실전 기록
+      </p>
+      <div class="meta-bar">
+        <span>작성자: horus</span>
+        <span>•</span>
+        <span>시스템: ASUS ProArt X870E + Dual RTX 5070 Ti</span>
+        <span>•</span>
+        <span>추론 엔진: vLLM v0.28.0</span>
+        <span>•</span>
+        <span>기간: 2026년 8월 말 ~ 9월 말</span>
+      </div>
+    </header>
+
+    <!-- Key Metrics Display -->
+    <div class="metric-grid">
+      <div class="metric-card">
+        <div class="metric-num" style="color: var(--accent);">81.3 <span style="font-size: 18px;">tok/s</span></div>
+        <div class="metric-label">최종 단일 디코드 속도 (TP=2)</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-num" style="color: var(--green);">335.2 <span style="font-size: 18px;">tok/s</span></div>
+        <div class="metric-label">동시성 32 배치 처리량</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-num" style="color: var(--purple);">32 GB</div>
+        <div class="metric-label">합산 VRAM (16GB × 2)</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-num" style="color: var(--amber);">-50 %</div>
+        <div class="metric-label">RTX 5090 대비 하드웨어 비용 절감</div>
+      </div>
+    </div>
+
+    <!-- Intro -->
+    <h2>1. 서론: 아무도 가지 않은 길, 왜 5070 Ti 듀얼인가?</h2>
+    <p>
+      2026년 현재, 로컬 오픈소스 LLM 생태계에서 가장 각광받는 모델은 단연 <strong>Qwen 3.8-27B</strong>(및 Qwen 3.5 계열)입니다. 뛰어난 다국어 능력, 딥시크에 필적하는 심층 논리 추론(Thinking Token), 그리고 비전 인코더(ViT)를 통한 이미지 멀티모달 분석 능력까지 완벽하게 갖춘 올라운더 모델입니다.
+    </p>
+    <p>
+      하지만 27B 모델을 실서비스 수준(32k 토큰 장문 컨텍스트)으로 구동하려면 최소 <strong>28GB 이상의 VRAM</strong>이 필수적입니다.
+    </p>
+    <p>
+      이 스펙을 충족하기 위한 가장 보편적인 선택은 <strong>단일 RTX 5090 (32GB)</strong>입니다. 하지만 현실의 벽은 높았습니다:
+    </p>
+    <ul>
+      <li><strong>극심한 가격 프리미엄:</strong> 단일 카드 가격이 350만 ~ 400만 원에 육박합니다.</li>
+      <li><strong>575W 단일 다이 전력/발열:</strong> 단일 칩에서 뿜어져 나오는 575W의 열기는 일반 데스크톱 케이스와 파워 서플라이에 엄청난 부담을 줍니다.</li>
+    </ul>
+    <p>
+      여기서 발상의 전환을 시작했습니다:  
+      <strong>"150~160만 원대의 예산으로 16GB GDDR7을 탑재한 RTX 5070 Ti 2장을 결합하면 32GB VRAM을 확보할 수 있지 않을까?"</strong>  
+      2장의 5070 Ti는 합산 500W로 분산 쿨링이 가능하고, 합산 메모리 대역폭은 <strong>1,792 GB/s</strong>에 달합니다.
+    </p>
+    <p>
+      하지만 전 세계 커뮤니티(Reddit, GitHub, HuggingFace) 어디를 뒤져봐도 **5070 Ti Dual로 vLLM을 올려 Qwen 27B를 프로덕션으로 돌린 구체적인 성공 사례**는 전무했습니다. 소비자용 GeForce는 하드웨어 NVLink가 완전히 제거되어 있고, 데스크톱 보드에서는 PCIe 통신 병목으로 제 성능의 절반도 안 나온다는 비관론만 팽배했기 때문입니다.
+    </p>
+    <p>
+      우리는 이 비관론을 직접 부딪쳐 검증해 보기로 했습니다. 이것은 그 한 달간의 치열했던 엔지니어링 투쟁의 기록입니다.
+    </p>
+
+    <!-- Section 2: Narrative Timeline -->
+    <h2>2. 엔지니어링 타임라인: 고난과 반전의 6단계</h2>
+
+    <div class="timeline">
+      <!-- Step 1 -->
+      <div class="timeline-item">
+        <div class="timeline-dot danger"></div>
+        <div class="timeline-date">Phase 1: 8월 29일 ~ 30일</div>
+        <div class="timeline-title">첫 번째 벽: AWQ INT4 모델과 16GB VRAM의 충돌</div>
+        <p>
+          첫 시도는 <code>cyankiwi/Qwen3.8-27B-AWQ-INT4</code>였습니다. 듀얼 GPU를 텐서 병렬화(<code>TP=2</code>)로 묶어 vLLM을 기동했습니다.
+        </p>
+        <div class="story-block">
+          <div class="story-tag tag-struggle">시행착오: CUDA Graph 공간 부족과 OOM</div>
+          <p>
+            16GB 카드 2장에 모델 가중치(약 15GB)를 반씩 나누면 각 카드당 7.5GB가 남으므로 넉넉할 줄 알았습니다. 그러나 컨테이너를 올리자마자 에러가 터졌습니다:
+          </p>
+          <pre><code>RuntimeError: Engine core initialization failed.
+ValueError: No available memory for the cache blocks.</code></pre>
+          <p class="story-content">
+            "왜 5090 단일 카드에서는 잘 도는 모델이 5070 Ti 듀얼에서는 메모리 부족으로 터지는가?"
+          </p>
+          <p>
+            <strong>원인 규명:</strong> TP=2 환경에서는 각 GPU 워커마다 독립적인 PyTorch 컨텍스트, 통신 바운스 버퍼, 그리고 무엇보다 <strong>디코드 가속을 위한 CUDA Graph 캡처 공간(약 1.5~2GB)이 각 카드마다 중복으로 필요</strong>했습니다. 16GB VRAM에서 모델 가중치와 CUDA Graph가 자리를 다 차지하자 KV 캐시를 할당할 공간이 300MB도 남지 않았던 것입니다.
+          </p>
+        </div>
+        <p>
+          어떤 엔지니어들은 <code>--enforce-eager</code> 옵션을 주어 CUDA Graph를 끄라고 조언했지만, 그렇게 하면 디코드 속도가 30 tok/s 이하로 곤두박질칩니다. 우리는 <em>"어떠한 경우라도 CUDA Graph를 유지하며 VRAM을 확보한다"</em>는 원칙을 세웠습니다.
+        </p>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="timeline-item">
+        <div class="timeline-dot warning"></div>
+        <div class="timeline-date">Phase 2: 8월 31일</div>
+        <div class="timeline-title">PCIe 병목의 악몽과 PP=2 1차 시도의 처참한 실패</div>
+        <p>
+          우여곡절 끝에 메모리 옵션을 쥐어짜 AWQ 모델을 TP=2로 띄우는 데 성공했습니다. 그러나 벤치마크 수치는 충격적이었습니다:
+        </p>
+        <ul>
+          <li><strong>단일 디코드 속도:</strong> <strong>23.3 tok/s</strong> (너무 느려 실시간 챗봇 불가)</li>
+          <li><strong>대규모 배치 처리량:</strong> <strong>116 tok/s</strong>에서 완전히 캡(Cap)이 씌워짐</li>
+          <li><strong>GPU 전력 소비:</strong> 250W 중 <strong>188W</strong>에 갇혀 텐서코어가 100% 돌지 못함</li>
+        </ul>
+        <div class="story-block">
+          <div class="story-tag tag-insight">물리적 원인 규명: 128번의 PCIe 왕복 통신</div>
+          <p>
+            Qwen 27B는 총 64개의 트랜스포머 레이어로 구성되어 있습니다. TP=2는 매 레이어를 계산할 때마다 두 카드가 결과를 맞추는 All-Reduce 통신을 수행합니다. <strong>토큰 1개를 만들 때마다 두 카드가 PCIe 슬롯을 통해 128번의 통신을 주고받아야 했습니다.</strong> 텐서코어가 연산하는 시간보다 PCIe 버스에서 상대를 기다리는 시간이 더 길었던 것입니다.
+          </p>
+        </div>
+        <p>
+          이에 대한 탈출구로 <strong>파이프라인 병렬화(<code>PP=2</code>)</strong>를 시도했습니다. 레이어 0~31은 GPU 0이, 32~63은 GPU 1이 맡으면 통신이 토큰당 단 1번으로 줄어들기 때문입니다.  
+          하지만 AWQ 모델로 PP=2를 기동하자 또다시 <code>ValueError: No available memory for the cache blocks</code>를 뿜으며 기동조차 되지 않았습니다. 당시 vLLM V1 엔진은 PP 모드에서 임베딩과 LM Head를 한쪽 카드에 통째로 몰아넣었기 때문입니다.
+        </p>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="timeline-item">
+        <div class="timeline-dot success"></div>
+        <div class="timeline-date">Phase 3: 9월 5일</div>
+        <div class="timeline-title">구원투수의 등장: Blackwell NVFP4 모델과 PP=2의 첫 성공</div>
+        <p>
+          돌파구는 NVIDIA의 차세대 Blackwell 전용 양자화 모델인 <strong><code>gittensor-model-hub/Qwen3.8-27B-NVFP4-RTX5090</code></strong>의 도입이었습니다.
+        </p>
+        <p>
+          FP4 양자화는 AWQ 대비 가중치 크기를 더욱 압축했고, 명시적인 캐시 바이트 지정(<code>--kv-cache-memory 3031959552</code>)과 FP8 KV 캐시 설정을 통해 드디어 <strong>PP=2 환경의 vLLM 기동에 최초로 성공</strong>했습니다!
+        </p>
+        <pre><code>+-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   PID   Type   Process name                        GPU Memory Usage                |
+|    0  6825      C   VLLM::Worker_PP0                                          13938MiB  |
+|    1  6826      C   VLLM::Worker_PP1                                          14764MiB  |
++-----------------------------------------------------------------------------------------+</code></pre>
+        <p>
+          당시 확인된 첫 단일 질의 속도는 <strong>47.7 tok/s</strong>였습니다. AWQ 시절의 23 tok/s보다는 2배 빨라졌지만, 여전히 5090 단일 카드(75 tok/s)에 비하면 아쉬웠습니다.
+        </p>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="timeline-item">
+        <div class="timeline-dot warning"></div>
+        <div class="timeline-date">Phase 4: 9월 5일 ~ 6일</div>
+        <div class="timeline-title">PP=2의 달콤한 유혹(480 tok/s)과 멀티모달 OOM 대참사</div>
+        <p>
+          그런데 순수 텍스트 대량 배치를 돌리자 엄청난 반전이 일어났습니다. 14~16개의 요청을 큐에 가득 채우자 vLLM 엔진 로그에 경이로운 수치가 찍혔습니다:
+        </p>
+        <pre><code>Engine 000: Avg prompt throughput: 712.2 tokens/s, Avg generation throughput: 480.6 tokens/s (Running: 14 reqs)
+Engine 000: Avg prompt throughput: 1154.7 tokens/s, Avg generation throughput: 404.7 tokens/s (Running: 16 reqs)</code></pre>
+        <p>
+          <strong>순간 생성 처리량 480.6 tok/s!</strong> PCIe All-Reduce 통신 병목이 사라진 PP=2의 진가가 드러난 순간이었습니다. 우리는 <em>"TP=2로 돌렸을 때보다 대량 배치 처리량이 30%나 높다! 배치는 무조건 PP=2가 정답이다!"</em>라고 확신했습니다.
+        </p>
+        <div class="story-block">
+          <div class="story-tag tag-struggle">재앙의 시작: 이미지(Vision)가 들어오자 시스템이 붕괴하다</div>
+          <p>
+            기쁨은 오래가지 않았습니다. 실제 서비스에서 텍스트 배치 도중 <strong>이미지 몇 장이 포함된 멀티모달 요청</strong>이 유입되자마자 서버가 크래시를 일으켰습니다:
+          </p>
+          <pre><code>(Worker_PP0 pid=213) RuntimeError: Encoder cache miss for 71bbed5ce3add2...
+(Worker_PP0 pid=213) ERROR: multiproc_executor.py:1047
+vllm-qwen3.8-27b-NVFP4-RTX5090 exited with code 1</code></pre>
+          <p class="story-content">
+            "초기에는 각 카드당 12.5GB 수준이던 VRAM이, 이미지를 몇 건 처리하더니 GPU 0번만 15.38GB까지 치솟아 내려오지 않고 죽어버립니다!"
+          </p>
+          <p>
+            <strong>원인 분석:</strong> PP=2는 레이어만 앞뒤로 쪼갤 뿐, <strong>모델의 거대한 시각 인코더(Vision Transformer) 전체가 GPU 0번에만 100% 적재</strong>됩니다. 텍스트와 고해상도 이미지가 동시에 밀려들자 GPU 0의 메모리가 16GB 한계에 부딪혀 폭발한 것입니다.  
+            여기에 Qwen 3.8 특유의 Mamba 상태 블록 충돌(<code>max_num_seqs 256 exceeds available Mamba cache blocks 118</code>)까지 겹치며 PP=2는 복합 실서비스 환경에서 시한폭탄임이 드러났습니다.
+          </p>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="timeline-item">
+        <div class="timeline-dot warning"></div>
+        <div class="timeline-date">Phase 5: 9월 25일</div>
+        <div class="timeline-title">해킹 드라이버(Hacked Driver)의 유혹과 하드웨어의 재발견</div>
+        <p>
+          PP=2가 멀티모달 환경에서 불안정하다면, 다시 <strong>TP=2</strong>로 돌아가야 했습니다. 하지만 TP=2로 돌아가면 다시 128번의 PCIe 통신 병목에 갇히게 됩니다.
+        </p>
+        <p>
+          우리는 오픈소스 커뮤니티의 금기 영역인 <strong>'해킹된 NVIDIA 드라이버(aikitoria / tinygrad open-gpu-kernel-modules P2P 패치)'</strong>를 검토했습니다:
+        </p>
+        <ul>
+          <li>GeForce 카드는 P2P 통신 능력이 하드웨어적으로 존재하지만, NVIDIA가 드라이버 수준에서 소프트웨어 락(<code>CNS: Chipset Not Supported</code>)을 걸어둠.</li>
+          <li>커널 모듈 코드에서 <code>pKernelBif->p2pOverride = 0x11</code>을 강제하여 엔터프라이즈급 BAR1 P2P DMA를 뚫어보자는 구상이었습니다.</li>
+        </ul>
+        <div class="story-block">
+          <div class="story-tag tag-insight">전화위복: ASUS ProArt X870E의 진정한 가치 확인</div>
+          <p>
+            해킹 드라이버 적용에 앞서 현재 서버(<code>gpu2</code>)의 하드웨어 상태를 정밀 진단하던 중 결정적인 사실을 확인했습니다:
+          </p>
+          <pre><code>pcie.link.gen.max: 5 (PCIe 5.0 32GT/s 정상 인식)
+pcie.link.width.current: 8 (x8 대칭 분기 완벽 동작)
+BAR1 Memory: 16,384 MiB (16GB 전체 Resizable BAR 매핑 완료)</code></pre>
+          <p>
+            우리가 선택했던 <strong>ASUS ProArt X870E 메인보드</strong>는 CPU 직결 레인을 <strong>PCIe 5.0 x8 / x8</strong>로 대칭 분할해 주고 있었고, 이는 단방향 31.5 GB/s로 구형 PCIe 4.0 x16과 동등한 광대역이었습니다. 굳이 위험한 커널 해킹 드라이버를 쓰지 않더라도, <strong>vLLM 통신 스택과 버퍼 튜닝만으로도 All-Reduce 지연을 극복할 수 있다는 확신</strong>을 얻었습니다.
+          </p>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="timeline-item">
+        <div class="timeline-dot success"></div>
+        <div class="timeline-date">Phase 6: 9월 25일 ~ 26일</div>
+        <div class="timeline-title">마스터피스: TP=2 최적화 완성 및 81.3 tok/s 신기록 달성</div>
+        <p>
+          우리는 시스템의 모든 족쇄를 풀기 위해 4가지 정밀 튜닝을 단행했습니다:
+        </p>
+        <ol>
+          <li><strong><code>--max-num-batched-tokens 8192</code>:</strong> 4,105 토큰 프롬프트가 청크로 쪼개지지 않고 단 1번의 포워드 패스로 끝나도록 스케줄러 창을 2배로 확장 (단발 소요시간 12.7s ➔ 10.6s 단축)</li>
+          <li><strong><code>NCCL_BUFFSIZE: "8388608"</code>:</strong> PCIe 링 버퍼를 8MB로 확장하여 All-Reduce 통신 버스트 완충</li>
+          <li><strong><code>VLLM_ATTENTION_BACKEND: "FLASHINFER"</code>:</strong> Blackwell 텐서코어의 FP4 가중치 + FP8 KV 캐시 연산 효율 극대화</li>
+          <li><strong><code>PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:False"</code>:</strong> CUDA Graphs와 PyTorch 가상 메모리 관리자 간의 알려진 충돌 제거</li>
+        </ol>
+        <p>
+          그리고 마침내 실행된 <code>python vllm_bench.py --concurrency 16</code> 스트레스 벤치마크에서 우리는 믿기 힘든 수치를 목격했습니다.
+        </p>
+      </div>
+    </div>
+
+    <!-- Section 3: The Proof Image & Table -->
+    <h2>3. 최종 실측 벤치마크 데이터 (The Evidence)</h2>
+    <p>
+      아래는 모든 튜닝이 완료된 ProArt X870E + Dual RTX 5070 Ti 머신에서 실제 실행된 콘솔 벤치마크 결과 화면입니다.
+    </p>
+
+    <div class="media-box">
+      <img src="images/benchmark_result.png" alt="vllm_bench.py Console Output">
+      <div class="caption">▲ Dual RTX 5070 Ti (TP=2) 환경의 실제 벤치마크 콘솔 화면 (입력 ~4,105 토큰 / 출력 300 토큰)</div>
+    </div>
+
+    <div class="table-box">
+      <table>
+        <thead>
+          <tr>
+            <th>구간 / 테스트 단계</th>
+            <th>조건 (입력/출력/요청수)</th>
+            <th>TTFT (첫 토큰 반응성)</th>
+            <th>디코드 p50 속도</th>
+            <th>총 출력 처리량</th>
+            <th>소요 시간</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>1/3 단발 (동시성 1)</strong></td>
+            <td>입력 4,105 / 출력 300 (3건)</td>
+            <td>560.3 ms</td>
+            <td class="green-val">81.3 tok/s</td>
+            <td>68.7 tok/s</td>
+            <td>10.6초</td>
+          </tr>
+          <tr>
+            <td><strong>2/3 배치 (동시성 16)</strong></td>
+            <td>입력 4,105 / 출력 300 (96건)</td>
+            <td>595.5 ms</td>
+            <td>22.6 tok/s</td>
+            <td class="green-val">320.5 tok/s</td>
+            <td>80.3초</td>
+          </tr>
+          <tr>
+            <td><strong>3/3 포화 한계 (동시성 32)</strong></td>
+            <td>입력 4,105 / 출력 300 (128건)</td>
+            <td>7,218.9 ms</td>
+            <td>15.8 tok/s</td>
+            <td class="green-val">335.2 tok/s</td>
+            <td>101.2초</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="story-block">
+      <div class="story-tag tag-breakthrough">vLLM 엔진 로그 실시간 계측치</div>
+      <p>
+        벤치마크 도중 실제 요청이 큐에 차서 연속 디코딩이 이루어지는 순간 vLLM 내부 로거(<code>loggers.py</code>)에 찍힌 수치:
+      </p>
+      <pre><code>Engine 000: Avg prompt throughput: 4514.9 tokens/s, Avg generation throughput: 446.5 tokens/s (Running: 7 reqs, Waiting: 0 reqs, GPU KV cache usage: 28.8%)</code></pre>
+      <p class="story-content">
+        단일 디코드 81.3 tok/s, 배치 처리량 335.2 tok/s, 순간 최고 생성량 446.5 tok/s.  
+        우리가 꿈꿔왔던 성능이 온전히 눈앞에 실현되었습니다.
+      </p>
+    </div>
+
+    <!-- Section 4: Deep Comparison TP=2 vs PP=2 -->
+    <h2>4. 심층 분석: TP=2 vs PP=2, 무엇을 선택해야 하는가?</h2>
+    <p>
+      독자 여러분이 가장 궁금해할 질문: <em>"배치 처리량만 보면 PP=2(480 tok/s)가 TP=2(335 tok/s)보다 빠른데, 왜 최종 결론은 TP=2인가?"</em>
+    </p>
+
+    <div class="table-box">
+      <table>
+        <thead>
+          <tr>
+            <th>비교 항목</th>
+            <th>TP=2 (최종 확정 구성)</th>
+            <th>PP=2 (파이프라인)</th>
+            <th>엔지니어링 평가 및 판정</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>단일 사용자 체감 속도</strong></td>
+            <td class="green-val">81.3 tok/s (압도적 쾌적)</td>
+            <td class="rose-val">47.7 tok/s (답답한 타이핑)</td>
+            <td>TP=2가 <strong>+70.4% 빠름</strong>. 실시간 챗봇 품질의 결정타</td>
+          </tr>
+          <tr>
+            <td><strong>대용량 텍스트 배치 처리량</strong></td>
+            <td class="amber-val">320 ~ 335 tok/s (피크 446)</td>
+            <td class="green-val">480.6 tok/s (최고치)</td>
+            <td>PP=2가 우세하나, 실시간성을 반토막 내면서 얻을 만큼의 차이는 아님</td>
+          </tr>
+          <tr>
+            <td><strong>VRAM 메모리 대칭성</strong></td>
+            <td class="green-val">완벽한 50:50 분산 (7.8G : 7.8G)</td>
+            <td class="rose-val">극심한 불균형 (15.4G : 13G)</td>
+            <td>TP=2는 두 카드가 고르게 숨을 쉬지만, PP=2는 GPU 0만 터질 위험</td>
+          </tr>
+          <tr>
+            <td><strong>멀티모달 (이미지) 안정성</strong></td>
+            <td class="green-val">매우 안정적 (ViT도 반씩 분산)</td>
+            <td class="rose-val">OOM 크래시 빈발 (ViT GPU 0 독점)</td>
+            <td>이미지 분석이 포함된 실서비스에서 PP=2는 실격</td>
+          </tr>
+          <tr>
+            <td><strong>프롬프트 캐싱 (Prefix Cache)</strong></td>
+            <td class="green-val">양쪽 GPU 캐시 동기화 최상</td>
+            <td class="amber-val">스테이지별 캐시 분절</td>
+            <td>멀티턴 대화가 길어질수록 TP=2의 효율이 극대화됨</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="story-block">
+      <div class="story-tag tag-insight">엔지니어의 깨달음: 체감 품질의 비대칭성</div>
+      <p>
+        사용자가 화면을 보며 질문을 던질 때, <strong>47 tok/s와 81 tok/s는 '기다림'과 '즉답'이라는 전혀 다른 사용자 경험(UX)</strong>을 만듭니다.  
+        반면 백그라운드 배치 작업에서 처리량이 480 tok/s냐 335 tok/s냐는, 수만 건 작업을 2시간 만에 끝내느냐 2시간 40분 만에 끝내느냐의 문제일 뿐입니다.
+      </p>
+      <p class="story-content">
+        "배치 시 약간의 시간 차이를 감수한다면, 81.3 tok/s의 극강의 반응성과 완벽한 VRAM 안정성을 동시에 주는 TP=2가 실시간/배치 병행 운영을 위한 유일무이한 종결 세팅이다."
+      </p>
+    </div>
+
+    <!-- Section 5: Verified Docker Compose -->
+    <h2>5. 프로덕션 확정 `docker-compose.yml`</h2>
+    <p>
+      모든 시행착오를 거쳐 완성된 최종 배포 매니페스트입니다. 그대로 복사하여 프로덕션에 즉시 적용할 수 있습니다.
+    </p>
+
+    <pre><code>services:
+  vllm-qwen:
+    image: vllm/vllm-openai:v0.28.0
+    container_name: vllm-qwen3.8-27b-NVFP4-RTX5090
+    runtime: nvidia
+    restart: always
+    ipc: host
+
+    ports:
+      - "8000:8000"
+
+    environment:
+      HF_TOKEN: "your_huggingface_token_here"
+      # CUDA Graphs 가상 메모리 충돌 방지 (False 필수)
+      PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:False"
+
+      # 하드웨어 P2P 검사 활성화
+      VLLM_SKIP_P2P_CHECK: "0"
+
+      # 불필요한 NCCL 디버그 로그 제거
+      NCCL_DEBUG: "WARN"
+      # [핵심] PCIe All-Reduce 링 버퍼 8MB 확장
+      NCCL_BUFFSIZE: "8388608"
+
+      # [핵심] Blackwell(RTX 50 시리즈) 텐서코어 전용 어텐션 커널 강제
+      VLLM_ATTENTION_BACKEND: "FLASHINFER"
+
+    volumes:
+      - "${HOME}/.cache/huggingface:/root/.cache/huggingface"
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 300
+      start_period: 600s
+
+    command: >
+      --model gittensor-model-hub/Qwen3.8-27B-NVFP4-RTX5090
+      --served-model-name qwen3.8:27b
+      --tensor-parallel-size 2
+      --pipeline-parallel-size 1
+      --max-num-seqs 32
+      --gpu-memory-utilization 0.90
+      --max-model-len 32768
+      --max-num-batched-tokens 8192
+      --kv-cache-dtype fp8
+      --enable-chunked-prefill
+      --mm-processor-kwargs '{"max_pixels": 1003520}'
+      --limit-mm-per-prompt '{"image": 1}'
+      --reasoning-parser qwen3
+      --port 8000
+      --host 0.0.0.0</code></pre>
+
+    <!-- Section 6: Conclusion -->
+    <h2>6. 최종 결론: 단일 5090 vs 5070 Ti 듀얼의 경제학</h2>
+
+    <div class="table-box">
+      <table>
+        <thead>
+          <tr>
+            <th>비교 항목</th>
+            <th>단일 플래그십 (RTX 5090 32GB)</th>
+            <th>우리 시스템 (RTX 5070 Ti Dual 32GB)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>하드웨어 구매 비용</strong></td>
+            <td>약 350만 ~ 400만 원</td>
+            <td class="green-val">약 150만 ~ 160만 원 (55% 이상 절감!)</td>
+          </tr>
+          <tr>
+            <td><strong>총 VRAM 용량</strong></td>
+            <td>32GB GDDR7 (단일 512-bit)</td>
+            <td>32GB GDDR7 (듀얼 256-bit × 2 = 512-bit)</td>
+          </tr>
+          <tr>
+            <td><strong>전력 및 쿨링 구조</strong></td>
+            <td>575W 단일 다이 집중 발열 (극심한 쿨링 부담)</td>
+            <td class="green-val">250W × 2 분산 발열 (일반 공랭/수랭으로 여유)</td>
+          </tr>
+          <tr>
+            <td><strong>단일 디코드 속도</strong></td>
+            <td>약 75 ~ 80 tok/s</td>
+            <td class="green-val">81.3 tok/s (동등 이상!)</td>
+          </tr>
+          <tr>
+            <td><strong>대용량 프롬프트 프리필</strong></td>
+            <td>4,137 tok/s (PCIe 통신 0초)</td>
+            <td class="amber-val">2,100 ~ 2,500 tok/s (PCIe 왕복으로 약 60%)</td>
+          </tr>
+          <tr>
+            <td><strong>실제 서비스 체감 성능</strong></td>
+            <td>기준점 (100%)</td>
+            <td class="green-val"><strong>약 80% ~ 85% 수준 도달</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>
+      한 달 전, <em>"소비자용 듀얼 GPU로는 PCIe 병목 때문에 LLM 추론이 불가능하다"</em>는 주변의 우려는 틀렸음이 입증되었습니다.
+    </p>
+    <p>
+      <strong>ASUS ProArt X870E의 PCIe 5.0 Bifurcation(x8/x8) 메인보드, Blackwell 전용 NVFP4 양자화 모델, 그리고 vLLM 스택 튜닝(8192 토큰 프리필, 8MB NCCL 버퍼, FlashInfer)</strong>이 삼위일체로 결합했을 때, <strong>Dual RTX 5070 Ti는 단일 RTX 5090의 절반 가격으로 상용 API를 완벽히 대체하는 최고의 고성능 로컬 추론 머신</strong>으로 재탄생했습니다.
+    </p>
+    <p>
+      로컬 AI 인프라를 구축하려는 모든 엔지니어와 연구자분들에게 이 기록이 확신과 실전 가이드가 되기를 바랍니다.
+    </p>
+
+    <footer>
+      <p>Project Horus • Dual GPU & LLM Optimization Engineering Lab</p>
+      <p>Hardware: AMD Ryzen 5 9600X, ASUS ProArt X870E-CREATOR, Dual NVIDIA RTX 5070 Ti (Driver 580.173.02)</p>
+    </footer>
+  </div>
+
+</body>
+</html>

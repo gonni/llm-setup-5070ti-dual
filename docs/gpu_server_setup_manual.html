@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ASUS ProArt X870E + RTX PRO 6000 GPU 서버 설치 가이드</title>
+  <style>
+    :root {
+      --bg-color: #0d1117;
+      --card-bg: #161b22;
+      --card-border: #30363d;
+      --text-main: #c9d1d9;
+      --text-bright: #f0f6fc;
+      --text-muted: #8b949e;
+      --accent: #58a6ff;
+      --accent-green: #3fb950;
+      --accent-amber: #d29922;
+      --accent-purple: #bc8cff;
+      --code-bg: #0b0e14;
+      --code-border: #21262d;
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.65;
+      padding: 30px 20px 80px;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    header {
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 24px;
+      margin-bottom: 36px;
+    }
+
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+      border: 1px solid;
+    }
+
+    .badge-blue { background: rgba(56, 139, 253, 0.15); color: #58a6ff; border-color: rgba(56, 139, 253, 0.4); }
+    .badge-green { background: rgba(46, 160, 67, 0.15); color: #3fb950; border-color: rgba(46, 160, 67, 0.4); }
+    .badge-purple { background: rgba(188, 140, 255, 0.15); color: #bc8cff; border-color: rgba(188, 140, 255, 0.4); }
+
+    h1 {
+      font-size: 26px;
+      color: var(--text-bright);
+      margin-bottom: 10px;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 28px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 12px;
+    }
+
+    .step-number {
+      background: var(--accent);
+      color: #0b0e14;
+      font-weight: 700;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    h2 {
+      font-size: 18px;
+      color: var(--text-bright);
+    }
+
+    h3 {
+      font-size: 15px;
+      color: var(--text-bright);
+      margin: 18px 0 8px;
+    }
+
+    p {
+      margin-bottom: 12px;
+      font-size: 14.5px;
+    }
+
+    .code-container {
+      position: relative;
+      margin: 12px 0 18px;
+    }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--code-border);
+      border-radius: 6px;
+      padding: 14px 16px;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 13.5px;
+      line-height: 1.5;
+      color: #e6edf3;
+    }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 13px;
+    }
+
+    p code, li code {
+      background: rgba(110, 118, 129, 0.2);
+      border: 1px solid var(--code-border);
+      padding: 1px 5px;
+      border-radius: 4px;
+      color: var(--accent);
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: #21262d;
+      border: 1px solid #363b42;
+      border-radius: 4px;
+      color: var(--text-muted);
+      font-size: 11px;
+      padding: 4px 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .copy-btn:hover {
+      background: #30363d;
+      color: var(--text-bright);
+    }
+
+    .alert {
+      border-left: 4px solid;
+      padding: 12px 16px;
+      border-radius: 0 6px 6px 0;
+      margin: 16px 0;
+      font-size: 14px;
+      background: rgba(22, 27, 34, 0.7);
+    }
+
+    .alert-tip { border-color: var(--accent-green); background: rgba(46, 160, 67, 0.08); }
+    .alert-warn { border-color: var(--accent-amber); background: rgba(210, 153, 34, 0.08); }
+    .alert-info { border-color: var(--accent); background: rgba(88, 166, 255, 0.08); }
+
+    .alert strong {
+      color: var(--text-bright);
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 13.5px;
+    }
+
+    th, td {
+      border: 1px solid var(--card-border);
+      padding: 8px 12px;
+      text-align: left;
+    }
+
+    th {
+      background: #1c2128;
+      color: var(--text-bright);
+      font-weight: 600;
+    }
+
+    ul, ol {
+      padding-left: 20px;
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+
+    li {
+      margin-bottom: 6px;
+    }
+
+    .highlight {
+      color: var(--accent-green);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="badge-row">
+      <span class="badge badge-blue">Ubuntu 24.04.4 LTS Server</span>
+      <span class="badge badge-green">ASUS ProArt X870E-CREATOR</span>
+      <span class="badge badge-purple">RTX PRO 6000 (48GB)</span>
+      <span class="badge badge-blue">vLLM v0.28.0 + Qwen3.8-27B</span>
+    </div>
+    <h1>GPU 서버 단독 세팅 매뉴얼 (NVIDIA / Docker / vLLM)</h1>
+    <div class="subtitle">
+      집 gpu2 서버(Dual RTX 5070 Ti)에서 실측 검증된 드라이버 및 vLLM 최적화 구성을 바탕으로, 회사의 동일 메인보드 + RTX PRO 6000 단일 48GB GPU 장비에 동일 버전으로 구축하는 표준 가이드입니다.
+    </div>
+  </header>
+
+  <!-- Step 1 -->
+  <div class="card">
+    <div class="card-header">
+      <div class="step-number">1</div>
+      <h2>사전 패키지 및 PCIe 장치 점검</h2>
+    </div>
+    <p>Ubuntu 24.04.4 Server 설치 직후, 커널 모듈 빌드(DKMS)와 도구들에 필요한 기본 패키지를 설치합니다.</p>
+    
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><code>sudo apt update && sudo apt upgrade -y
+sudo apt install -y build-essential dkms curl wget git jq net-tools pciutils</code></pre>
+    </div>
+
+    <h3>PCIe 슬롯 인식 확인</h3>
+    <p>메인보드 PCIe 5.0/4.0 슬롯에 장착된 RTX PRO 6000 GPU가 정상적으로 버스에 감지되는지 확인합니다:</p>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><code>lspci -nnk | grep -iE 'vga|3d|nvidia'</code></pre>
+    </div>
+  </div>
+
+  <!-- Step 2 -->
+  <div class="card">
+    <div class="card-header">
+      <div class="step-number">2</div>
+      <h2>NVIDIA 드라이버 설치 (v580 Open Kernel Module)</h2>
+    </div>
+    <p>Ubuntu 24.04 LTS 공식 리포지토리의 안정화된 <strong>nvidia-driver-580-open</strong> 버전을 설치합니다. (gpu2에서 구동 중인 <code>580.173.xx</code>와 동일 버전)</p>
+
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><code># 1. NVIDIA 오픈 커널 모듈 드라이버 설치
+sudo apt install -y nvidia-driver-580-open
+
+# 2. Persistence Mode 서비스 활성화 (프로세스 미실행 시에도 드라이버 상주 유지)
+sudo systemctl enable --now nvidia-persistenced
+
+# 3. 드라이버 로드를 위한 재부팅
+sudo reboot</code></pre>
+    </div>
+
+    <h3>재부팅 후 드라이버 상태 확인</h3>
+    <p>SSH 재접속 후 GPU 드라이버 정상 인식 상태를 검증합니다:</p>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><code>nvidia-smi</code></pre>
+    </div>
+    <div class="alert alert-tip">
+      <strong>점검 포인트:</strong>
+      • Driver Version: 580.173.xx<br>
+      • Memory-Usage: 49140MiB (48GB VRAM 정상 감지)<br>
+      • Persistence-M: On
+    </div>
+  </div>
+
+  <!-- Step 3 -->
+  <div class="card">
+    <div class="card-header">
+      <div class="step-number">3</div>
+      <h2>Docker Engine 및 Docker Compose 설치</h2>
+    </div>
+    <p>Ubuntu 공식 최신 Docker(29.x) 및 Docker Compose v2 패키지를 설치하고 권한을 부여합니다.</p>
+
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><code># 1. 패키지 설치
+sudo apt install -y docker.io docker-compose-v2
+
+# 2. 현재 사용자 계정을 docker 그룹에 추가
+sudo usermod -aG docker $USER
+
+# 3. Docker 서비스 활성화 및 자동 시작
+sudo systemctl enable --now docker
+
+# 4. 새 세션 그룹 반영 (터미널 재접속 대체)
+newgrp docker</code></pre>
+    </div>
+
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><code>docker --version && docker compose version</code></pre>
+    </div>
+  </div>
+
+  <!-- Step 4 -->
+  <div class="card">
+    <div class="card-header">
+      <div class="step-number">4</div>
+      <h2>NVIDIA Container Toolkit 설치 및 Docker 연동</h2>
+    </div>
+    <p>컨테이너 내부에서 호스트 GPU를 접근할 수 있도록 NVIDIA Container Toolkit을 구성합니다.</p>
+
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><code># 1. GPG 키 등록
+curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | \
+  sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+
+# 2. APT 저장소 목록 등록
+curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+  sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+  sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+
+# 3. 툴킷 설치
+sudo apt update
+sudo apt install -y nvidia-container-toolkit
+
+# 4. Docker 런타임 등록 및 데몬 재시작
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker</code></pre>
+    </div>
+
+    <h3>GPU 패스스루 스모크 테스트</h3>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><code>docker run --rm --gpus all ubuntu nvidia-smi</code></pre>
+    </div>
+    <div class="alert alert-tip">
+      <strong>성공 기준:</strong> 컨테이너 안에서 호스트와 동일한 RTX PRO 6000 <code>nvidia-smi</code> 화면이 출력되면 완료입니다.
+    </div>
+  </div>
+
+  <!-- Step 5 -->
+  <div class="card">
+    <div class="card-header">
+      <div class="step-number">5</div>
+      <h2>vLLM 컨테이너 구성 및 실행 (Qwen3.8-27B)</h2>
+    </div>
+
+    <div class="alert alert-info">
+      <strong>RTX PRO 6000 (48GB) 단일 구성 최적화 포인트:</strong><br>
+      • gpu2(듀얼 5070 Ti 16GBx2)의 경우 1장당 16GB 한계로 인해 TP=2 분할과 엄격한 VRAM 메모리 제한이 필요했습니다.<br>
+      • <strong>RTX PRO 6000은 단일 카드에 48GB VRAM</strong>이 탑재되어 있으므로, <strong><code>--tensor-parallel-size 1</code></strong> 단일 GPU 설정으로 프로세스 간 통신 병목 없이 최고 속도를 발휘하며, 최대 16K~32K 컨텍스트와 넉넉한 KV 캐시를 확보할 수 있습니다.
+    </div>
+
+    <h3>5.1 작업 디렉토리 및 환경 변수(.env) 생성</h3>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><code>mkdir -p ~/docker-runtime/vllm
+cd ~/docker-runtime/vllm
+
+cat &lt;&lt;'EOF' &gt; ~/docker-runtime/vllm/.env
+# Hugging Face 토큰 (필요 시 입력)
+HF_TOKEN=
+
+# PyTorch 메모리 파편화 방지 (CUDA Graph 안정화)
+PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+EOF
+
+chmod 600 ~/docker-runtime/vllm/.env</code></pre>
+    </div>
+
+    <h3>5.2 docker-compose.yml 작성</h3>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><code>cat &lt;&lt;'EOF' &gt; ~/docker-runtime/vllm/docker-compose.yml
+services:
+  vllm-qwen:
+    image: vllm/vllm-openai:v0.28.0
+    container_name: vllm-qwen3.8-27b
+    runtime: nvidia
+    restart: unless-stopped
+    ipc: host
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ~/.cache/huggingface:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 30
+      start_period: 600s
+    command: >
+      --model cyankiwi/Qwen3.8-27B-AWQ-INT4
+      --served-model-name qwen3.8:27b
+      --tensor-parallel-size 1
+      --gpu-memory-utilization 0.92
+      --max-model-len 16384
+      --max-num-seqs 16
+      --max-num-batched-tokens 8192
+      --kv-cache-dtype fp8
+      --enable-chunked-prefill
+      --enable-prefix-caching
+      --reasoning-parser qwen3
+      --port 8000
+      --host 0.0.0.0
+EOF</code></pre>
+    </div>
+
+    <h3>5.3 vLLM 기동 및 로그 모니터링</h3>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><code># 백그라운드 기동
+docker compose up -d
+
+# 기동 로그 및 모델 로딩 모니터링
+docker compose logs -f</code></pre>
+    </div>
+    <p>로그 마지막에 <code>Uvicorn running on http://0.0.0.0:8000</code> 안내가 나타나면 정상 가동 완료입니다. (로그 종료는 <code>Ctrl + C</code>)</p>
+  </div>
+
+  <!-- Step 6 -->
+  <div class="card">
+    <div class="card-header">
+      <div class="step-number">6</div>
+      <h2>API 검증 및 추론 테스트</h2>
+    </div>
+
+    <h3>6.1 Health Check 확인</h3>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><code>curl -i http://localhost:8000/health</code></pre>
+    </div>
+    <p class="highlight">➔ 응답: HTTP/1.1 200 OK</p>
+
+    <h3>6.2 모델 목록 엔드포인트</h3>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><code>curl -s http://localhost:8000/v1/models | jq .</code></pre>
+    </div>
+
+    <h3>6.3 Chat Completion 추론 테스트</h3>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><code>curl -s http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "qwen3.8:27b",
+    "messages": [
+      {"role": "system", "content": "You are a helpful assistant."},
+      {"role": "user", "content": "안녕하세요! 서버 환경 테스트 중입니다. 1줄 요약으로 답변해주세요."}
+    ],
+    "max_tokens": 100,
+    "temperature": 0.7
+  }' | jq .</code></pre>
+    </div>
+
+    <h3>6.4 실시간 스트리밍(SSE) 테스트</h3>
+    <div class="code-container">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><code>curl -N http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "qwen3.8:27b",
+    "messages": [{"role": "user", "content": "1부터 5까지 한 줄씩 출력해줘."}],
+    "stream": true
+  }'</code></pre>
+    </div>
+  </div>
+
+  <!-- Step 7 -->
+  <div class="card">
+    <div class="card-header">
+      <div class="step-number">7</div>
+      <h2>주요 점검 사항 (ASUS ProArt X870E 및 OS)</h2>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>구분</th>
+          <th>점검 항목</th>
+          <th>권장 설정 / 해결책</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>BIOS</strong></td>
+          <td>Above 4G Decoding</td>
+          <td><strong>Enabled</strong> (48GB VRAM 주소 공간 할당 필수)</td>
+        </tr>
+        <tr>
+          <td><strong>BIOS</strong></td>
+          <td>Re-Size BAR Support</td>
+          <td><strong>Enabled</strong> 또는 <strong>Auto</strong></td>
+        </tr>
+        <tr>
+          <td><strong>디스크</strong></td>
+          <td>루트 파티션 LVM 용량</td>
+          <td>우분투 기본 설치 시 100GB로 제한될 수 있음.<br><code>sudo lvextend -l +100%FREE /dev/ubuntu-vg/ubuntu-lv && sudo resize2fs /dev/ubuntu-vg/ubuntu-lv</code></td>
+        </tr>
+        <tr>
+          <td><strong>방화벽</strong></td>
+          <td>외부 통신 (UFW)</td>
+          <td>사내 타 PC 연동 필요 시:<br><code>sudo ufw allow 8000/tcp</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  function copyCode(button) {
+    const pre = button.parentElement.querySelector('pre');
+    const code = pre.querySelector('code') || pre;
+    navigator.clipboard.writeText(code.innerText.trim()).then(() => {
+      const origText = button.innerText;
+      button.innerText = 'Copied!';
+      button.style.color = '#3fb950';
+      button.style.borderColor = '#3fb950';
+      setTimeout(() => {
+        button.innerText = origText;
+        button.style.color = '';
+        button.style.borderColor = '';
+      }, 2000);
+    });
+  }
+</script>
+
+</body>
+</html>
